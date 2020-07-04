@@ -1,0 +1,6 @@
+Quick start
+
+1. llvm reader compiles bc/ast file into coq specification into specification folder.
+2. compiles specification folder to get specivication.vo
+3. Require import specification.vo; core.vo; tactics.vo
+4. Doing proof using vcg + hoare logic framework
