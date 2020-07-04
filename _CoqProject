@@ -1,0 +1,7 @@
+-Q theories Core
+-I theories
+-I instance
+
+theories/monadic.v
+theories/memory.v
+theories/arith.v
