@@ -12,9 +12,9 @@ Definition monad (S:Type) (R:Type) := S -> (R * S).
  * a C-99 similar syntax:
  *
  * code_block:
- *      v1 ?= f;
- *      v2 ?= g v1;
- *      v3 ?= h v1 v2;
+ *      v1 %= f;
+ *      v2 %= g v1;
+ *      v3 %= h v1 v2;
  *      # v3; (# for return, coq uses return as keyword)
  *)
 
@@ -32,9 +32,9 @@ Definition
 
 Notation "f >>= g" := (bind f g) (at level 80).
 
-Notation "x ?= f ; g" := (f >>= (fun x => g )) (at level 80).
+Notation "x %= f ; g" := (f >>= (fun x => g )) (at level 80, right associativity).
 
-Notation "f ;; g" := (f >>= (fun tt => g)) (at level 80).
+Notation "f ;; g" := (f >>= (fun tt => g)) (at level 80, right associativity).
 
 (*
  * With the above notation we will be able to define sequencial code blocks
@@ -139,7 +139,7 @@ Lemma
   (hoare_g: forall x, { Q x } [| g x |] { Q' })
   (hoare_f: { P } [| f |] { Q })
   : { P } [|
-       x ?= f;
+       x %= f;
        g x
     |] { Q'}.
 Proof.
