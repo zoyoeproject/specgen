@@ -18,6 +18,15 @@ Class  type_of_ind (T:Type) :=
   }
 .
 
+(*
+ * Introduce an type class of abstract spec since the spec is defined case
+ * by case after C files are translated.
+ *
+ * Since the forward declaration of all c types is declared later after c files are
+ * translated, we define abstract_memory through an instance of type_of_ind which
+ * will be provided after c types are translated.
+ *)
+
 Definition abstract_memory {Forward:Type} (type_ind:type_of_ind Forward)
   := forall (r:reference) (ft:Forward), (@to Forward) type_ind ft.
 
@@ -37,7 +46,12 @@ Definition
   : state type_ind
   := STATE Forward type_ind mem.
 
-(* Get the content of ref from the state *)
+(*
+ * Deference: Get the content of ref from the state
+ * A type paremeter ft is provided since we need
+ * to know the type of the object stored at
+ * reference ref.
+ *)
 Definition
   dereference
   {Forward: Type} {type_ind: type_of_ind Forward}
@@ -46,6 +60,19 @@ Definition
   := (mem type_ind s) ref ft
 .
 
+(*
+ * Set the content of abstract_memory which corresponding to
+ * ( *ref = o; )
+ * for state s.
+ *)
+Axiom
+  set: forall
+  {Forward: Type} {type_ind: type_of_ind Forward}
+  (s: state type_ind ) (ref: reference) {ft: Forward}
+  (o: (@to Forward) type_ind ft), abstract_memory type_ind
+.
+
+(* The monadic version of deference *)
 Definition
   get_obj
   {Forward: Type} {type_ind: type_of_ind Forward}
@@ -53,24 +80,13 @@ Definition
   (ft:Forward)
   := (fun s => (dereference ref ft s, s)).
 
-(* Set the content of abstract_memory which corresponding to
- * { *ref = o; } for state s
- *)
-Definition
-  set
-  {Forward: Type} {type_ind: type_of_ind Forward}
-  (s: state type_ind ) (ref: reference) {ft: Forward}
-  (o: (@to Forward) type_ind ft) : abstract_memory type_ind
-.
-  unfold abstract_memory.
-  intros.
-  refine (if (@beq Forward type_ind ft ft0) then _  else _).
-Admitted.
 
-
-(* In C99, *x can be LHS of assign, to minic this, we might need a
+(*
+ * Monadic version of set:
+ *
+ * In C99, *x can be LHS of assign, to minic this, we might need a
  * similar notation in coq later.
- * Currently we cook the definition of set_obj first
+ * Currently we cook the definition of set_obj as follows.
  *)
 Definition
   set_obj {Forward:Type} {type_ind: type_of_ind Forward} {ft: Forward}
@@ -88,6 +104,4 @@ Definition
     set_obj o ref
 .
 
-(* Introduce an type class of abstract spec since the spec is defined case
- * by case after C files are translated
- *)
+
