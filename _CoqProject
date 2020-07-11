@@ -4,4 +4,5 @@
 
 theories/monadic.v
 theories/memory.v
+theories/hoare.v
 theories/arith.v
