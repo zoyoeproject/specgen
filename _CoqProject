@@ -1,5 +1,6 @@
 -Q theories Core
 -I theories
+-I plugin
 -I instance
 
 theories/monadic.v
@@ -7,3 +8,11 @@ theories/memory.v
 theories/hoare.v
 theories/wprules.v
 theories/arith.v
+theories/lib.v
+
+plugin/test_plugin.mllib
+plugin/test.mlg
+plugin/test.mli
+plugin/test_aux.ml
+plugin/test_aux.mli
+
