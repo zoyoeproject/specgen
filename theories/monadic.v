@@ -149,7 +149,7 @@ Qed.
 
 Lemma
   hoare_if
-  {S R R' E:Type}
+  {S R R':Type}
   {P: S -> Prop}
   {P': S -> Prop}
   {Q: R -> S -> Prop}

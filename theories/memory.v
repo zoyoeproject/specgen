@@ -42,9 +42,9 @@ Definition
   set_memory
   {Forward: Type} {type_ind:type_of_ind Forward}
   (s: state type_ind) (* the state *)
-  mem                 (* the updated abstract memory *)
+  mem_func            (* the updated abstract memory *)
   : state type_ind
-  := STATE Forward type_ind mem.
+  := STATE Forward type_ind (mem_func (mem type_ind s)).
 
 (*
  * Deference: Get the content of ref from the state
@@ -68,8 +68,10 @@ Definition
 Axiom
   set: forall
   {Forward: Type} {type_ind: type_of_ind Forward}
-  (s: state type_ind ) (ref: reference) {ft: Forward}
-  (o: (@to Forward) type_ind ft), abstract_memory type_ind
+  (ref: reference) {ft: Forward}
+  (o: (@to Forward) type_ind ft)
+  (s: abstract_memory type_ind )    
+  , abstract_memory type_ind
 .
 
 (* The monadic version of deference *)
@@ -92,7 +94,7 @@ Definition
   set_obj {Forward:Type} {type_ind: type_of_ind Forward} {ft: Forward}
   (o: (@to Forward) type_ind ft)
   ref
-  := (fun (s: state type_ind) => (tt, set_memory s (set s ref o))).
+  := (fun (s: state type_ind) => (tt, set_memory s (set ref o))).
 
 (* Test the correctiness of notation set_obj and get_obj *)
 Definition
