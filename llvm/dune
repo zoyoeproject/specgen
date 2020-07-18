@@ -1,0 +1,4 @@
+(executable
+ (name specbuilder)
+ (libraries llvm llvm.bitreader)
+)
