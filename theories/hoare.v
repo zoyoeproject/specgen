@@ -43,7 +43,7 @@ Lemma
 Proof.
   unfold bind, hoare_triple in *.
   firstorder.
-Qed.  
+Qed.
 
 (* If prod does not dependents on the state
  * and the return value, it is safe to lift it

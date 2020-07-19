@@ -13,8 +13,7 @@ Class  type_of_ind (T:Type) :=
   {
   to: forall (o: T), Type;
   beq: forall (o:T) (o':T), bool;
-  beq_eq: forall (o:T) (o':T), Is_true (beq o o') <-> o = o';
-  unique: forall x y, ~ (x = y) -> ~ (to x = to y)
+  beq_eq: forall (o:T) (o':T), Is_true (beq o o') -> o = o'
   }
 .
 
@@ -70,7 +69,7 @@ Axiom
   {Forward: Type} {type_ind: type_of_ind Forward}
   (ref: reference) {ft: Forward}
   (o: (@to Forward) type_ind ft)
-  (s: abstract_memory type_ind )    
+  (s: abstract_memory type_ind )
   , abstract_memory type_ind
 .
 

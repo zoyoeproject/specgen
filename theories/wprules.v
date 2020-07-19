@@ -42,4 +42,4 @@ Proof.
   firstorder.
 Qed.
 
-  
+
