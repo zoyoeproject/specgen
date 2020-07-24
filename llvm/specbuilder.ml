@@ -16,7 +16,6 @@ let () =
       | _ -> None
     )
 
-
 type name =
   | Anonymous
   | Name of string
@@ -48,9 +47,36 @@ let rec coq_type ctype =
   match ctype with
   | Void -> "void"
   | Int -> "Z"
-  | Ref ctype -> "reference " ^ coq_type ctype
+  | Ref ctype -> "(reference " ^ coq_type ctype ^ ")"
   | Struct na -> string_of_name na ^ ".t"
   | Function na -> string_of_name na ^ ".body"
+
+let is_assign op_code =
+  let open Llvm.Opcode in
+  match op_code with
+  | Add -> true
+  | FAdd -> true
+  | Sub -> true
+  | FSub -> true
+  | Mul -> true
+  | FMul -> true
+  | UDiv -> true
+  | SDiv -> true
+  | FDiv -> true
+  | URem -> true
+  | SRem -> true
+  | FRem -> true
+  | Shl -> true
+  | LShr -> true
+  | AShr -> true
+  | And -> true
+  | Or -> true
+  | Xor -> true
+  | Alloca -> true
+  | Load -> true
+  | GetElementPtr -> assert false
+  | Ret -> false
+  | _ -> assert false
 
 let emit_operator op_code =
   let open Llvm.Opcode in
@@ -80,9 +106,9 @@ let emit_operator op_code =
   | And -> "wand"
   | Or -> "wor"
   | Xor -> "wxor"
-  | Alloca -> assert false
+  | Alloca -> "alloca"
   | Load -> assert false
-  | Store -> assert false
+  | Store -> "set_obj"
   | GetElementPtr -> assert false
   | _ -> raise UnsupportOpcode
 
@@ -103,7 +129,7 @@ let emit_func_head lv =
   let func_ty = Llvm.element_type @@ Llvm.type_of lv in
   let ptypes = Llvm.param_types func_ty in
   let rettyp = Llvm.return_type func_ty in
-  Printf.printf "%s : %s :=\n"
+  Printf.printf "%s :\n  %s :=\n"
     (Array.fold_left (fun acc llty ->
       let typ = parse_type llty in
       let coqtyp = coq_type typ in
@@ -115,8 +141,8 @@ let emit_operand _ llvalue =
   match Llvm.classify_value llvalue with
   | NullValue -> "NullValue"
   | Argument -> Llvm.value_name llvalue
-  | ConstantInt -> Llvm.string_of_llvalue llvalue
-  | ConstantExpr -> Llvm.string_of_llvalue llvalue
+  | ConstantInt -> "(" ^ Llvm.string_of_llvalue llvalue ^ ")"
+  | ConstantExpr -> "cexpr " ^ (Llvm.string_of_llvalue llvalue)
   | Instruction _ -> (Llvm.value_name llvalue)
 
 (* Unsupported operand
@@ -142,28 +168,40 @@ let emit_operand _ llvalue =
 *)
   | _ -> raise (UnsupportOperand llvalue)
 
-let emit_llinst llvalue =
-  match Llvm.classify_value llvalue with
-  | Instruction opcode -> emit_operator opcode
+let get_opcode lli =
+  match Llvm.classify_value lli with
+  | Instruction opcode -> opcode
   | _ -> assert false
 
 let get_operands lli =
   Array.init (Llvm.num_operands lli) (fun n -> Llvm.operand lli n)
 
+let emit_llvm_inst lli =
+  let operands = get_operands lli in
+  let opcode = get_opcode lli in
+  let op_name = emit_operator opcode in
+  if is_assign opcode then
+    Printf.printf "  %s ?= %s; (* %s *)\n"
+      (Llvm.value_name lli)
+      (Array.fold_left (fun acc operand ->
+          acc ^ " " ^  emit_operand () operand
+      ) op_name operands)
+      (Llvm.string_of_llvalue lli)
+  else
+    Printf.printf "  %s; (* %s *)\n"
+      (Array.fold_left (fun acc operand ->
+          acc ^ " " ^  emit_operand () operand
+      ) op_name operands)
+      (Llvm.string_of_llvalue lli)
+
+(*
+ * Emit the function body
+ * It will iter the blocks and we have not support
+ * cfg analysis yet.
+ *)
 let emit_func_body lv =
   Llvm.iter_blocks
-    (fun llbb ->
-      Printf.printf "  bb: %s\n" (Llvm.value_name lv) ;
-      Llvm.iter_instrs
-        (fun lli ->
-          let operands = get_operands lli in
-          Printf.printf "  [%d] %s ?= %s\n" (Llvm.num_operands lli)
-            (Array.fold_left (fun acc operand -> acc ^ " -" ^ emit_operand () operand)
-                (emit_llinst lli) operands)
-            (Llvm.string_of_llvalue lli)
-        )
-        llbb
-    )
+    (Llvm.iter_instrs emit_llvm_inst)
     lv
 
 let emit_fun lv =
