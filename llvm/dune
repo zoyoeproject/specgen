@@ -1,4 +1,4 @@
 (executable
- (name specbuilder)
- (libraries llvm llvm.bitreader)
+ (name specBuilder)
+ (libraries llvm llvm.bitreader cfg lltrans)
 )

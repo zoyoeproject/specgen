@@ -1,0 +1,4 @@
+(library
+ (name cfg)
+ (modules_without_implementation type)
+)

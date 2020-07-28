@@ -7,3 +7,16 @@ int foo (struct A *a, int y) {
   y = y + x;
   return y + 1;
 }
+
+int branch(int x) {
+  if (x > 0) {
+    int y = 3;
+    y = y + x;
+    x = x * y;
+    return x + y;}
+  else {
+    x = x + 3;
+    x = x + 3;
+    return x;
+  }
+}
