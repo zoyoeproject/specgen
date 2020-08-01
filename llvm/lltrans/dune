@@ -1,4 +1,4 @@
 (library
  (name lltrans)
- (libraries cfg Llvm)
+ (libraries codeflow Llvm)
 )

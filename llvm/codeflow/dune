@@ -1,4 +1,4 @@
 (library
- (name cfg)
+ (name codeflow)
  (modules_without_implementation type)
 )

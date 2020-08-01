@@ -11,14 +11,22 @@ module type Block = sig
   val elements: t -> elt list
 end
 
+module type Exp = sig
+  type 'a t
+end
+
 module type Statement = sig
-  module Exp : Exp
+  module Exp: Exp
   type 'a t
   val mkAssign: 'a Exp.t -> 'a Exp.t -> 'a t
   val mkLoad: 'a Exp.t -> 'a Exp.t -> 'a t
-  val mkComment: string -> 'a t
+  val mkMutInd: ('a Exp.t * 'a t) list -> 'a t
+  val mkLoop: ('a Exp.t) list -> 'a t -> 'a t
   val mkFallThrough: unit -> 'a t
   val mkDangling: unit -> 'a t
+  val mkRaise: int -> 'a t
+  val mkComment: string -> 'a t
+  val bind: ('a Exp.t) option -> 'a t -> 'a t -> 'a t
   val emit: Emitter.t -> 'a t -> unit
 end
 
@@ -219,17 +227,14 @@ module Make (BasicBlock: Block) = struct
 
     let stop_callback () = () in
     let contract_callback () = path := List.tl !path in
-    let log_callback _ _ = () in
-    (*
+    (* let log_callback _ _ = () in *)
     let log_callback state hint =
       Format.printf "%s | " hint;
       Format.printf "%s | %s\n" state (List.fold_left (
         fun acc c-> BasicBlock.id c ^ " -> " ^ acc
       ) "" !path)
     in
-    *)
 
-    
     BGraph.dfs [Some entry; None] extend_callback
         contract_callback stop_callback log_callback;
 
@@ -291,31 +296,36 @@ module Make (BasicBlock: Block) = struct
      *
      * Suppose that path = x_1, x_2, ... x_k,
      * then we add c at the begin of the path
-     * new patch = c, x_1, x_2, ..., x_k
+     * new path = c, x_1, x_2, ..., x_k
      *)
     let extend_callback c =
-      Format.printf "path := < ";
-      List.iter (fun (aggro:BlockClosure.t) ->
-        Format.printf " %s " (BlockClosure.id aggro)
-      ) (List.rev !path);
-      Format.printf " -- end -- %s >\n" (BlockClosure.id aggro);
+      let pr_path () =
+        Format.printf "path := < ";
+        List.iter (fun (aggro:BlockClosure.t) ->
+          Format.printf " %s " (BlockClosure.id aggro)
+        ) (List.rev !path);
+        Format.printf " -- end -- %s >\n" (BlockClosure.id aggro);
+      in
 
       if BlockClosure.equal c entry_aggro && List.length !path != 0
       then begin
         shrink := true;
         mps := upd_mp (List.tl (List.rev !path));
+        pr_path ();
         false
       end else begin
         path := c :: !path;
         shrink := false;
+        pr_path ();
         true
       end
     in
-    
+
     let stop_callback () = () in
     let contract_callback () =
       if not !shrink then begin
         (* Update the merge point candidates *)
+        shrink := true;
         let c = List.hd !path in
         mps := upd_mp (List.tl (List.rev !path));
         natual_exits := AggroSet.add c !natual_exits
@@ -323,7 +333,14 @@ module Make (BasicBlock: Block) = struct
       path := List.tl !path
     in
 
-    let log_callback _ _ = () in
+    (* let log_callback _ _ = () in *)
+    let log_callback state hint =
+      Format.printf "%s | " hint;
+      Format.printf "%s | %s\n" state (List.fold_left (
+        fun acc c-> BlockClosure.id c ^ " -> " ^ acc
+      ) "" !path)
+    in
+
 
     BlockClosureGraph.dfs [Some aggro] extend_callback
         contract_callback stop_callback log_callback;
@@ -358,7 +375,7 @@ module Make (BasicBlock: Block) = struct
     let aggro = !(BlockClosure.find_aggro target closure) in
     let exit_aggros = get_merge_point aggro entry_aggro in
     let exits, (statement:'a Statement.t) =
-        trace_within target aggro translator in
+        trace_within target aggro exit_aggros translator in
     let loop _ _ = false in
     let r = match exit_aggros with
     | Diverge bs (* blocks here are only for debug purpose *) ->
@@ -428,14 +445,29 @@ module Make (BasicBlock: Block) = struct
     in
     r
 
+  and trace_blocks previous blocks aggro merge translator =
+    let exists, stmts = List.fold_left (fun (es, stmts) b ->
+      let next = BlockClosure.find_aggro b aggro in
+      let exists, stmt = trace_within b !next merge translator in
+      BlockSet.union exists es, stmts @ [stmt]
+    ) (BlockSet.empty, []) blocks in
+    let statement = match stmts with
+    | [] -> previous
+    | [statement] -> Statement.bind None previous statement
+    | branchs ->
+        let branchs = List.map (fun b -> (Statement.Exp.mkUnit (), b)) branchs in
+        let catch = Statement.mkMutInd branchs in
+        Statement.bind None previous catch
+    in exists, statement
+
   (* Trace the entry block all the way to exit*)
-  and trace_within entry aggro translator =
+  and trace_within entry aggro merge translator =
     Format.printf "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
     assert (BlockSet.mem entry aggro.blocks);
     match BlockSet.elements aggro.blocks with
     | [] -> assert false
     | [hd] -> (* hd must equal to entry *)
-      BlockSet.of_list (BasicBlock.next hd), translator hd
+      trace_blocks (translator hd) (BasicBlock.next hd) aggro merge translator
     | _ -> begin
         let aggro = aggregate entry aggro.blocks true in
         trace aggro (Statement.mkFallThrough ())

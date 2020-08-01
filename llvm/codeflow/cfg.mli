@@ -14,14 +14,22 @@ module type Translator = sig
   val translate: 'a -> 'b
 end
 
+module type Exp = sig
+  type 'a t
+end
+
 module type Statement = sig
-  module Exp : Element.Exp
+  module Exp: Exp
   type 'a t
   val mkAssign: 'a Exp.t -> 'a Exp.t -> 'a t
   val mkLoad: 'a Exp.t -> 'a Exp.t -> 'a t
-  val mkComment: string -> 'a t
+  val mkMutInd: ('a Exp.t * 'a t) list -> 'a t
+  val mkLoop: ('a Exp.t) list -> 'a t -> 'a t
   val mkFallThrough: unit -> 'a t
   val mkDangling: unit -> 'a t
+  val mkRaise: int -> 'a t
+  val mkComment: string -> 'a t
+  val bind: ('a Exp.t) option -> 'a t -> 'a t -> 'a t
   val emit: Emitter.t -> 'a t -> unit
 end
 

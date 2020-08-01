@@ -11,6 +11,7 @@ let _ =
   Printf.printf "*** iter_functions ***\n";
   Llvm.iter_functions FuncBuilder.emit_fun llm;
 
+  Llvm.iter_functions CfgBuilder.emit_llfun llm;
   (*
   Printf.printf "*** iter_globals ***\n";
   Llvm.iter_globals print_val llm;

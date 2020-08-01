@@ -13,9 +13,8 @@ module BasicBlock (Index: IndexMap) = struct
   let elements b =
     Llvm.fold_left_instrs (fun acc lli -> acc @ [lli]) [] b
   let next b =
-    Llvm.fold_left_instrs (fun acc lli ->
-      acc @ Array.to_list (Llvm.successors lli)
-    ) [] b
+    let llterminator = Llvm.block_terminator b in
+    Array.to_list (Llvm.successors (Option.get llterminator))
 end
 
 let emit_llfun llfun =
@@ -29,10 +28,13 @@ let emit_llfun llfun =
   let module BB = BasicBlock (struct
     let get_block_id na = StringMap.find na bbmap
   end) in
-  let module CFG = Cfg.Make (BB) in
+  let module CFG = Codeflow.Cfg.Make (BB) in
 
-  let translator llvalue: string CFG.Statement.t =
-    CFG.Statement.mkComment (FuncBuilder.emit_llvm_inst llvalue)
+  let translator llblock : string CFG.Statement.t =
+    Llvm.fold_left_instrs (fun acc v ->
+      let stmt = CFG.Statement.mkComment (FuncBuilder.emit_llvm_inst v) in
+      CFG.Statement.bind None acc stmt
+    ) (CFG.Statement.mkFallThrough ()) llblock
   in
 
   let bset = Llvm.fold_left_blocks (fun bset llb ->
@@ -44,4 +46,4 @@ let emit_llfun llfun =
   let st = CFG.trace aggregate (CFG.Statement.mkFallThrough ())
     aggregate None entry_block translator in
   let emitter = Codeflow.Emitter.mkEmitter () in
-  CFG.statement.emit emitter (snd st)
+  CFG.Statement.emit emitter (snd st)
