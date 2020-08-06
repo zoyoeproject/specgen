@@ -1,3 +1,4 @@
+open Element
 (* The Basic Blocks we would like to translate *)
 module type Block = sig
   type elt
@@ -14,29 +15,26 @@ module type Translator = sig
   val translate: 'a -> 'b
 end
 
-module type Exp = sig
-  type 'a t
-end
-
 module type Statement = sig
   module Exp: Exp
-  type 'a t
-  val mkAssign: 'a Exp.t -> 'a Exp.t -> 'a t
-  val mkLoad: 'a Exp.t -> 'a Exp.t -> 'a t
-  val mkMutInd: ('a Exp.t * 'a t) list -> 'a t
-  val mkLoop: ('a Exp.t) list -> 'a t -> 'a t
-  val mkFallThrough: unit -> 'a t
-  val mkDangling: unit -> 'a t
-  val mkRaise: int -> 'a t
-  val mkComment: string -> 'a t
-  val bind: ('a Exp.t) option -> 'a t -> 'a t -> 'a t
-  val emit: Emitter.t -> 'a t -> unit
+  type t
+  val mkAssign: Exp.t -> Exp.t -> t
+  val mkLoad: Exp.t -> Exp.t -> t
+  val mkMutInd: (Exp.t * t) list -> t
+  val mkLoop: (Exp.t) list -> t -> t
+  val mkFallThrough: unit -> t
+  val mkDangling: unit -> t
+  val mkRaise: int -> t
+  val mkComment: string -> t
+  val bind: Exp.t option -> t -> t -> t
+  val emit: Emitter.t -> t -> unit
 end
 
 module Make:
-  functor (BasicBlock:Block) -> sig
+  functor (S:Statement) (BasicBlock:Block with type elt = S.Exp.t)
+  -> sig
   module BlockClosure: Block
-  module Statement: Statement
+  module Statement: (Statement with type Exp.t = BasicBlock.elt)
   module BlockSet: (Set.S with type elt = BasicBlock.t)
 
   type error
@@ -50,14 +48,24 @@ module Make:
   val get_merge_point: BlockClosure.t -> BlockClosure.t
     -> BlockClosure.t merge_point
 
+  type entry = Statement.Exp.t * BasicBlock.t
+  type translator = BasicBlock.t -> ((Statement.Exp.t * Statement.t) * entry list)
+
   (* trace function: current closure -> previous_statement -> entry_aggro
     -> merge_aggro -> target block *)
-  val trace: BlockClosure.t -> 'a Statement.t
+  val trace: BlockClosure.t
+    -> Statement.t
     -> BlockClosure.t (* Entry aggro *)
     -> BlockClosure.t option (* Merge aggro *)
-    -> BasicBlock.t
-    -> (BasicBlock.t -> 'a Statement.t)
-    -> BlockSet.t * 'a Statement.t
+    -> (Statement.Exp.t * BasicBlock.t)
+    -> translator
+    -> (Statement.Exp.t * BasicBlock.t) list * Statement.t
+
+  val trace_within: (Statement.Exp.t * BasicBlock.t)
+    -> BlockClosure.t
+    -> BlockClosure.t merge_point
+    -> translator
+    -> (Statement.Exp.t * BasicBlock.t) list * Statement.t
 
   val debug: BlockClosure.t -> unit
   val emitter: Emitter.t ->  unit

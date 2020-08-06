@@ -1,5 +1,20 @@
 open Element
 
+module type Statement = sig
+  module Exp: Exp
+  type t
+  val mkAssign: Exp.t -> Exp.t -> t
+  val mkLoad: Exp.t -> Exp.t -> t
+  val mkMutInd: (Exp.t * t) list -> t
+  val mkLoop: Exp.t list -> t -> t
+  val mkFallThrough: unit -> t
+  val mkDangling: unit -> t
+  val mkRaise: int -> t
+  val mkComment: string -> t
+  val bind: Exp.t option -> t -> t -> t
+  val emit: Emitter.t -> t -> unit
+end
+
 module type Block = sig
   type elt
   type t
@@ -9,25 +24,6 @@ module type Block = sig
   val equal: t -> t -> bool
   val next: t -> t list
   val elements: t -> elt list
-end
-
-module type Exp = sig
-  type 'a t
-end
-
-module type Statement = sig
-  module Exp: Exp
-  type 'a t
-  val mkAssign: 'a Exp.t -> 'a Exp.t -> 'a t
-  val mkLoad: 'a Exp.t -> 'a Exp.t -> 'a t
-  val mkMutInd: ('a Exp.t * 'a t) list -> 'a t
-  val mkLoop: ('a Exp.t) list -> 'a t -> 'a t
-  val mkFallThrough: unit -> 'a t
-  val mkDangling: unit -> 'a t
-  val mkRaise: int -> 'a t
-  val mkComment: string -> 'a t
-  val bind: ('a Exp.t) option -> 'a t -> 'a t -> 'a t
-  val emit: Emitter.t -> 'a t -> unit
 end
 
 module type Translator = sig
@@ -127,7 +123,6 @@ module AggregateSet (B: Block) = struct
     ) bset.blocks (bset.blocks,[])
 
   let elements bset = BlockSet.elements bset.blocks
-  let element_set bset = bset.blocks
 
   (*
    * Based on an underlying block cfg structure,
@@ -145,9 +140,9 @@ module AggregateSet (B: Block) = struct
 end
 
 (* The Basic Blocks we would like to translate *)
-module Make (BasicBlock: Block) = struct
-  module Exp = MakeExp
-  module Statement = MakeStatement(Exp)
+module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
+  = struct
+  module Statement = S
   module BlockSet = Set.Make(BasicBlock)
   module BlockMap = Map.Make(BasicBlock)
   module BGraph = Graph(BasicBlock)
@@ -155,6 +150,9 @@ module Make (BasicBlock: Block) = struct
   module BlockClosureGraph = Graph(BlockClosure)
   module AggroSet = Set.Make(BlockClosure)
   module AggroMap = Map.Make(BlockClosure)
+
+  type entry = Statement.Exp.t * BasicBlock.t
+  type translator = BasicBlock.t -> ((Statement.Exp.t * Statement.t) * entry list)
 
   type error =
   | MultiEntry of BlockSet.t
@@ -259,6 +257,16 @@ module Make (BasicBlock: Block) = struct
     | Diverge of 'a list
     | Dangle
 
+
+  exception DivergeExitOfAggroSet
+
+  let reach_merge_point mp b = match mp with
+  | Merge b' -> BlockClosure.equal b' b
+  | Dangle -> false
+  | Diverge ls -> List.fold_left (fun acc b' ->
+      acc || BlockClosure.equal b' b
+    ) false ls
+
   let merge_to_string = function
   | Merge bgg -> BlockClosure.id bgg
   | Dangle -> "Dangle"
@@ -360,8 +368,8 @@ module Make (BasicBlock: Block) = struct
   (*
    * Analysis a closure and make into a linear sequence of statements
    *)
-  let rec trace closure previous entry_aggro merge_aggro target translator
-    : (BlockSet.t * 'b Statement.t) =
+  let rec trace closure previous entry_aggro merge_aggro
+    (e, target) (translator:translator) =
 
     Format.printf "trace %s in %s ...\n" (BasicBlock.id target)
         (BlockClosure.id closure);
@@ -374,106 +382,73 @@ module Make (BasicBlock: Block) = struct
 
     let aggro = !(BlockClosure.find_aggro target closure) in
     let exit_aggros = get_merge_point aggro entry_aggro in
-    let exits, (statement:'a Statement.t) =
-        trace_within target aggro exit_aggros translator in
+    let exits, statement =
+        trace_within (e, target) aggro exit_aggros translator in
     let loop _ _ = false in
     let r = match exit_aggros with
-    | Diverge bs (* blocks here are only for debug purpose *) ->
-      (*
-       * Non of the blocks should stay in the targetrent closure
-       * except loop back
-       *)
-      let bs = List.fold_left (fun acc c ->
-        BlockSet.union (BlockClosure.element_set c) acc
-      ) BlockSet.empty bs in
-      let bs = BlockSet.elements bs in
-      let exits, branchs = List.fold_left (fun (es, ss) b ->
-          let (exits, statement) =
-          if (BlockClosure.with_in_closure closure b) then
-            trace closure (Statement.mkFallThrough ()) entry_aggro
-                (Some aggro) b translator
-          else
-            (* something not in closure, contradict with
-             * merge assumption *)
-            assert false
-          in
-          BlockSet.union es exits, ss @ [(Statement.Exp.mkUnit (), statement)]
-        ) (BlockSet.empty, []) bs in
-      let statement = match branchs with
-      | [] -> Statement.bind None previous statement
-      | [h] -> Statement.bind None previous @@ Statement.bind None statement (snd h)
-      | _ -> begin
-          let catch = Statement.mkMutInd branchs in
-          let statement = Statement.bind None statement catch in
-          Statement.bind None previous statement
-        end
-      in
+    | Diverge _ (* blocks here are only for debug purpose *) ->
       if loop entry_aggro exits then
         exits, Statement.mkLoop [] statement
       else
-        exits, statement
+        raise DivergeExitOfAggroSet
 
     | Dangle -> (exits, Statement.bind None previous statement)
 
     | Merge aggro when is_merge_aggro aggro ->
       (* When we already reach the merge point *)
         exits, Statement.bind None previous statement
-    | Merge aggro ->
+    | Merge _ ->
       begin
         (* We have not reach the merge_point *)
-        let exits, branchs = List.fold_left (fun (es, ss) b ->
-          let (exits, statement) =
-          if (BlockClosure.with_in_closure closure b) then
-            trace closure (Statement.mkFallThrough ()) entry_aggro
-                (Some aggro) b translator
-          else
-            (* something not in closure, contradict with
-             * merge assumption *)
-            assert false
-          in
-          BlockSet.union es exits, ss @ [(Statement.Exp.mkUnit (), statement)]
-        ) (BlockSet.empty, []) (BlockClosure.elements aggro) in
-        let statement = match branchs with
-        | [] -> Statement.bind None previous statement
-        | [h] -> Statement.bind None previous @@ Statement.bind None statement (snd h)
-        | _ -> begin
-            let catch = Statement.mkMutInd branchs in
-            Statement.bind None (Statement.bind None previous statement) catch
-          end
-        in (exits, statement)
+        let label, branch = match exits with
+          | [label, branch] -> label, branch
+          |  _ -> assert false
+        in
+        let (branchs, next) = trace closure statement entry_aggro
+            merge_aggro (label, branch) translator in
+        let statement = Statement.bind None previous @@ Statement.bind None statement next
+        in (branchs, statement)
       end
     in
     r
 
-  and trace_blocks previous blocks aggro merge translator =
-    let exists, stmts = List.fold_left (fun (es, stmts) b ->
+  and trace_blocks (_, previous) blocks aggro merge translator =
+    let exists, stmts = List.fold_left (fun (es, stmts) (exp, b) ->
       let next = BlockClosure.find_aggro b aggro in
-      let exists, stmt = trace_within b !next merge translator in
-      BlockSet.union exists es, stmts @ [stmt]
-    ) (BlockSet.empty, []) blocks in
+      let exists, stmt = trace_within (exp, b) !next merge translator in
+      exists @ es, stmts @ [exp, stmt]
+    ) ([],[]) blocks in
     let statement = match stmts with
     | [] -> previous
-    | [statement] -> Statement.bind None previous statement
+    | [_, s] -> Statement.bind None previous s
     | branchs ->
-        let branchs = List.map (fun b -> (Statement.Exp.mkUnit (), b)) branchs in
+        let branchs = List.map (fun (e, b) -> (e, b)) branchs in
         let catch = Statement.mkMutInd branchs in
         Statement.bind None previous catch
     in exists, statement
 
-  (* Trace the entry block all the way to exit*)
-  and trace_within entry aggro merge translator =
+  (* Trace the entry block all the way to exit *)
+  and trace_within (exp, entry) aggro merge translator
+    : (Statement.Exp.t * BasicBlock.t) list * Statement.t
+     =
     Format.printf "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
-    assert (BlockSet.mem entry aggro.blocks);
-    match BlockSet.elements aggro.blocks with
-    | [] -> assert false
-    | [hd] -> (* hd must equal to entry *)
-      trace_blocks (translator hd) (BasicBlock.next hd) aggro merge translator
-    | _ -> begin
-        let aggro = aggregate entry aggro.blocks true in
-        trace aggro (Statement.mkFallThrough ())
-          !(BlockClosure.find_aggro entry aggro)
-          None entry translator
-      end
+    if reach_merge_point merge aggro then
+      [exp, entry], Statement.mkFallThrough ()
+    else begin
+      assert (BlockSet.mem entry aggro.blocks);
+      match BlockSet.elements aggro.blocks with
+      | [] -> assert false
+      | [hd] -> (* hd must equal to entry *)
+        let previous, exits = translator hd in
+        trace_blocks previous
+          exits aggro merge translator
+      | _ -> begin
+          let aggro = aggregate entry aggro.blocks true in
+          trace aggro (Statement.mkFallThrough ())
+            !(BlockClosure.find_aggro entry aggro)
+            None (exp, entry) translator
+        end
+    end
   (* ---- end of rec trace ---- *)
 
 end

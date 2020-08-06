@@ -191,14 +191,14 @@ let emit_llvm_inst lli =
     let opcode = get_opcode lli in
     let op_name = emit_operator opcode in
     if is_assign opcode then
-      Printf.sprintf "  %s ?= %s; (* %s *)\n"
+      Printf.sprintf "%s ?= %s;  (*%s  *)"
         (Llvm.value_name lli)
         (Array.fold_left (fun acc operand ->
             acc ^ " " ^  emit_operand () operand
         ) op_name operands)
         (Llvm.string_of_llvalue lli)
     else
-      Printf.sprintf "  %s; (* %s *)\n"
+      Printf.sprintf "%s;  (*%s  *)"
         (Array.fold_left (fun acc operand ->
             acc ^ " " ^  emit_operand () operand
         ) op_name operands)
@@ -206,19 +206,3 @@ let emit_llvm_inst lli =
   with e ->
     Printf.printf "\nEmit lli error: %s" (Llvm.string_of_llvalue lli);
     raise e
-
-
-(*
- * Emit the function body
- * It will iter the blocks and we have not support
- * cfg analysis yet.
- *)
-let emit_func_body lv =
-  let entry_block = Llvm.entry_block lv in
-  Llvm.iter_instrs (fun v -> Printf.printf "%s" (emit_llvm_inst v)) entry_block
-
-let emit_fun lv =
-  emit_func_head lv;
-  emit_func_body lv
-
-
