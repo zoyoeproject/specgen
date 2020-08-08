@@ -151,6 +151,13 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   module AggroSet = Set.Make(BlockClosure)
   module AggroMap = Map.Make(BlockClosure)
 
+  module Exit = struct
+    type t = (Statement.Exp.t * BasicBlock.t)
+    let compare (_, b) (_, b') = BasicBlock.compare b b'
+  end
+
+  module ExitSet = Set.Make (Exit)
+
   type entry = Statement.Exp.t * BasicBlock.t
   type translator = BasicBlock.t -> ((Statement.Exp.t * Statement.t) * entry list)
 
@@ -365,6 +372,8 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
 
   (* -- end of get_merge_point -- *)
 
+  let clean_exits es = ExitSet.elements @@ ExitSet.of_list es
+
   (*
    * Analysis a closure and make into a linear sequence of statements
    *)
@@ -425,16 +434,17 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
         let branchs = List.map (fun (e, b) -> (e, b)) branchs in
         let catch = Statement.mkMutInd branchs in
         Statement.bind None previous catch
-    in exists, statement
+    in (clean_exits exists), statement
 
   (* Trace the entry block all the way to exit *)
   and trace_within (exp, entry) aggro merge translator
     : (Statement.Exp.t * BasicBlock.t) list * Statement.t
      =
     Format.printf "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
-    if reach_merge_point merge aggro then
+    if reach_merge_point merge aggro then begin
+      Format.printf "reach merge point\n";
       [exp, entry], Statement.mkFallThrough ()
-    else begin
+    end else begin
       assert (BlockSet.mem entry aggro.blocks);
       match BlockSet.elements aggro.blocks with
       | [] -> assert false

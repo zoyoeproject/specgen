@@ -37,8 +37,8 @@ module MakeStatement (E:Exp) = struct
     | MutInd ls ->
       Emitter.emitLine emitter "let _ = cases";
       let emitter = Emitter.indent emitter in
-      ignore @@ List.map (fun (_,s) ->
-        Emitter.emitLine emitter "%s" "case _ then";
+      ignore @@ List.map (fun (e,s) ->
+        Emitter.emitLine emitter "%s =>" (Exp.to_string e);
         let emitter' = Emitter.indent emitter in
         emit emitter' s
       ) ls;
