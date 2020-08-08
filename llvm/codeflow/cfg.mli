@@ -1,4 +1,5 @@
 open Element
+
 (* The Basic Blocks we would like to translate *)
 module type Block = sig
   type elt
@@ -34,7 +35,10 @@ module Make:
   functor (S:Statement) (BasicBlock:Block with type elt = S.Exp.t)
   -> sig
   module BlockClosure: Block
-  module Statement: (Statement with type Exp.t = BasicBlock.elt)
+  module Statement: (Statement with
+    type Exp.t = BasicBlock.elt
+    and type t= S.t
+  )
   module BlockSet: (Set.S with type elt = BasicBlock.t)
 
   type error
@@ -67,6 +71,6 @@ module Make:
     -> translator
     -> (Statement.Exp.t * BasicBlock.t) list * Statement.t
 
-  val debug: BlockClosure.t -> unit
+  val debug_aggro: BlockClosure.t -> unit
   val emitter: Emitter.t ->  unit
 end

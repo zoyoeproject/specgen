@@ -1,3 +1,5 @@
+open Utils
+
 exception UnsupportType of Llvm.lltype
 exception UnsupportOperand of Llvm.llvalue
 exception UnsupportOpcode
@@ -35,6 +37,7 @@ type c_type =
   | Struct of name
   | Function of name
 
+(*
 let rec indicator_of ctype =
   match ctype with
   | Void -> "Unit"
@@ -42,6 +45,7 @@ let rec indicator_of ctype =
   | Ref ctype -> "Ref " ^ indicator_of ctype
   | Struct na -> "T_" ^ string_of_name na
   | Function na -> "F_" ^ string_of_name na
+*)
 
 let rec coq_type ctype =
   match ctype with
@@ -185,24 +189,56 @@ let get_opcode lli =
 let get_operands lli =
   Array.init (Llvm.num_operands lli) (fun n -> Llvm.operand lli n)
 
+let translate_exits_br lli =
+  match get_operands lli with
+  | [|exp; v1; v2|] ->
+    [(exp, Llvm.block_of_value v1); (exp, Llvm.block_of_value v2)]
+  | [|exp; v1|] ->
+    [(exp, Llvm.block_of_value v1)]
+  | [|exp|] ->
+    [(exp, Llvm.block_of_value exp)]
+  | ops -> begin
+      Printf.printf "%s\n" (Llvm.string_of_llvalue lli);
+      let ops_str = Array.fold_left (fun acc operand ->
+              acc ^ " " ^  emit_operand () operand
+          ) "ops: " ops in
+      Printf.printf "%s\n" ops_str;
+      assert false
+    end
+
+let translate_exits lli =
+  let opcode = get_opcode lli in
+  match opcode with
+  | Br -> translate_exits_br lli
+  | _ ->
+    let succs = Array.to_list (Llvm.successors lli) in
+    List.map (fun s -> Llvm.value_of_block s, s) succs
+
 let emit_llvm_inst lli =
   try
     let operands = get_operands lli in
     let opcode = get_opcode lli in
-    let op_name = emit_operator opcode in
-    if is_assign opcode then
-      Printf.sprintf "%s ?= %s;  (*%s  *)"
-        (Llvm.value_name lli)
-        (Array.fold_left (fun acc operand ->
-            acc ^ " " ^  emit_operand () operand
-        ) op_name operands)
-        (Llvm.string_of_llvalue lli)
-    else
-      Printf.sprintf "%s;  (*%s  *)"
-        (Array.fold_left (fun acc operand ->
-            acc ^ " " ^  emit_operand () operand
-        ) op_name operands)
-        (Llvm.string_of_llvalue lli)
+    if Llvm.is_terminator lli then begin
+      LlvmStatement.mkFallThrough ()
+    end else begin
+      if is_assign opcode then
+        let op_name = emit_operator opcode in
+        let r = Printf.sprintf "%s ?= %s;  (*%s  *)"
+          (Llvm.value_name lli)
+          (Array.fold_left (fun acc operand ->
+              acc ^ " " ^  emit_operand () operand
+          ) op_name operands)
+          (Llvm.string_of_llvalue lli)
+        in LlvmStatement.mkComment r
+      else
+        let op_name = emit_operator opcode in
+        let r = Printf.sprintf "%s;  (*%s  *)"
+          (Array.fold_left (fun acc operand ->
+              acc ^ " " ^  emit_operand () operand
+          ) op_name operands)
+          (Llvm.string_of_llvalue lli)
+        in LlvmStatement.mkComment r
+    end
   with e ->
     Printf.printf "\nEmit lli error: %s" (Llvm.string_of_llvalue lli);
     raise e

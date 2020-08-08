@@ -17,16 +17,12 @@ let emit_llfun_body emitter llfun =
   let translator llblock =
     let llvalue = Llvm.value_of_block llblock in
     let statement = Llvm.fold_left_instrs (fun acc v ->
-      let stmt = CFG.Statement.mkComment (Lltrans.FuncBuilder.emit_llvm_inst v) in
+      let stmt = Lltrans.FuncBuilder.emit_llvm_inst v in
       CFG.Statement.bind None acc stmt
     ) (CFG.Statement.mkFallThrough ()) llblock in
     let llterminator = Llvm.block_terminator llblock in
-    let succs = Array.to_list (Llvm.successors (Option.get llterminator)) in
-    match succs with
-    | [] -> (llvalue, statement), []
-    | [s] -> (llvalue, statement), [Llvm.value_of_block s, s]
-    | _ -> (llvalue, statement), (List.map (fun s -> (Llvm.value_of_block s, s))) succs
-
+    let exists = Lltrans.FuncBuilder.translate_exits (Option.get llterminator) in
+    (llvalue, statement), exists
   in
 
   let bset = Llvm.fold_left_blocks (fun bset llb ->

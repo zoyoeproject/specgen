@@ -1,5 +1,10 @@
 open Element
 
+let debug_toggle = false
+let debug : ('a, out_channel, unit) format -> 'a
+     = if debug_toggle then Printf.printf
+       else (fun x -> Printf.ifprintf stdout x)
+
 module type Statement = sig
   module Exp: Exp
   type t
@@ -107,14 +112,14 @@ module AggregateSet (B: Block) = struct
   let compare x y = (index x) - (index y)
   let equal x y = ((index x) = (index y))
   let next bset =
-    (* Format.printf " -- current_bset: %s --" (id bset); *)
+    (* debug " -- current_bset: %s --" (id bset); *)
     snd @@ BlockSet.fold (fun b acc ->
       let nexts = B.next b in
       List.fold_left (fun (total, s) n ->
         if BlockSet.mem n total then (total, s)
         else begin
           if with_in_closure bset n then
-            (* Format.printf " <next of %s: %s> " (B.id b) (B.id n); *)
+            (* debug " <next of %s: %s> " (B.id b) (B.id n); *)
             let r = find_aggro n bset in
             (BlockSet.union (!r).blocks total, !r :: s)
           else (total, s)
@@ -166,7 +171,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
 
   exception CFGError of (error * BlockClosure.t option)
 
-  let debug aggro =
+  let debug_aggro aggro =
     BlockClosure.iter (fun aggo ->
       let aggs = BlockClosure.next aggo in
       let nexts = List.fold_left (fun acc a ->
@@ -183,7 +188,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
    * there is no loop starting from entry' in Graph(t)
    *)
   let aggregate entry blockset entry_as_exit: BlockClosure.t =
-    Format.printf "aggregating ...\n";
+    debug "aggregating ...\n";
     let aggregate_map: ((BlockSet.t ref) BlockMap.t) ref = ref BlockMap.empty in
     let aggro_map = ref BlockMap.empty in
     let path = ref [] in
@@ -234,8 +239,8 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
     let contract_callback () = path := List.tl !path in
     (* let log_callback _ _ = () in *)
     let log_callback state hint =
-      Format.printf "%s | " hint;
-      Format.printf "%s | %s\n" state (List.fold_left (
+      debug "%s | " hint;
+      debug "%s | %s\n" state (List.fold_left (
         fun acc c-> BasicBlock.id c ^ " -> " ^ acc
       ) "" !path)
     in
@@ -255,7 +260,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
     ) !aggregate_map BlockSet.empty
     in
     let aggro = !(BlockMap.find entry !aggro_map) in
-    debug aggro;
+    debug_aggro aggro;
     if entry_as_exit then flush stdout;
     aggro
 
@@ -297,11 +302,11 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
             acc @ [aggro]
           else acc
         ) [] path in
-      Format.printf "mps := < ";
+      debug "mps := < ";
       List.iter (fun (aggro:BlockClosure.t) ->
-        Format.printf " %s " (BlockClosure.id aggro)
+        debug " %s " (BlockClosure.id aggro)
       ) r;
-      Format.printf ">\n";
+      debug ">\n";
       Some r
     in
 
@@ -315,11 +320,11 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
      *)
     let extend_callback c =
       let pr_path () =
-        Format.printf "path := < ";
+        debug "path := < ";
         List.iter (fun (aggro:BlockClosure.t) ->
-          Format.printf " %s " (BlockClosure.id aggro)
+          debug " %s " (BlockClosure.id aggro)
         ) (List.rev !path);
-        Format.printf " -- end -- %s >\n" (BlockClosure.id aggro);
+        debug " -- end -- %s >\n" (BlockClosure.id aggro);
       in
 
       if BlockClosure.equal c entry_aggro && List.length !path != 0
@@ -350,8 +355,8 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
 
     (* let log_callback _ _ = () in *)
     let log_callback state hint =
-      Format.printf "%s | " hint;
-      Format.printf "%s | %s\n" state (List.fold_left (
+      debug "%s | " hint;
+      debug "%s | %s\n" state (List.fold_left (
         fun acc c-> BlockClosure.id c ^ " -> " ^ acc
       ) "" !path)
     in
@@ -366,7 +371,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
       | [] -> Diverge (AggroSet.elements !natual_exits)
       | bset :: _ -> Merge bset
     in
-    Format.printf "get merge point for %s --> %s\n" (BlockClosure.id aggro)
+    debug "get merge point for %s --> %s\n" (BlockClosure.id aggro)
       (merge_to_string m);
     m
 
@@ -380,7 +385,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   let rec trace closure previous entry_aggro merge_aggro
     (e, target) (translator:translator) =
 
-    Format.printf "trace %s in %s ...\n" (BasicBlock.id target)
+    debug "trace %s in %s ...\n" (BasicBlock.id target)
         (BlockClosure.id closure);
 
     let is_merge_aggro a =
@@ -440,9 +445,9 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   and trace_within (exp, entry) aggro merge translator
     : (Statement.Exp.t * BasicBlock.t) list * Statement.t
      =
-    Format.printf "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
+    debug "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
     if reach_merge_point merge aggro then begin
-      Format.printf "reach merge point\n";
+      debug "reach merge point\n";
       [exp, entry], Statement.mkFallThrough ()
     end else begin
       assert (BlockSet.mem entry aggro.blocks);
