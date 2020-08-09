@@ -4,14 +4,16 @@ module TypeMap = Map.Make(Id)
 
 module type Exp = sig
   type t
+  type code
   val to_string : t -> string
+  val code_to_string: code -> string
 end
 
 module MakeStatement (E:Exp) = struct
   module Exp = E
   type t =
     | Comment of string
-    | Assign of (Exp.t * Exp.t)
+    | Assign of (Exp.code * Exp.t option * Exp.t list)
     | Load of (Exp.t * Exp.t)
     | MutInd of (Exp.t * t) list
     | Loop of (Exp.t list * t)
@@ -20,7 +22,7 @@ module MakeStatement (E:Exp) = struct
     | Dangling (* non'a tinate statement *)
     | Raise of int
 
-  let mkAssign x y = Assign (x, y)
+  let mkAssign c lhs ops = Assign (c, lhs, ops)
   let mkLoad v ptr = Load (v, ptr)
   let mkMutInd cases = MutInd cases
   let mkLoop ctx ts = Loop (ctx, ts)
@@ -54,7 +56,13 @@ module MakeStatement (E:Exp) = struct
     | Dangling -> Emitter.emitLine emitter "dangling"
     | Load (x, y) -> Emitter.emitLine emitter "%s <- load %s;"
         (Exp.to_string x) (Exp.to_string y)
-    | Assign (x, y) -> Emitter.emitLine emitter "%s <- ret %s;"
-        (Exp.to_string x) (Exp.to_string y)
+    | Assign (op, lhs, ops) ->
+        let rhs = List.fold_left (fun acc operand ->
+              acc ^ " " ^  (Exp.to_string operand)
+          ) (Exp.code_to_string op) ops in
+        match lhs with
+        | Some lhs -> Emitter.emitLine emitter "%s ?= %s;"
+            (Exp.to_string lhs) rhs
+        | None -> Emitter.emitLine emitter "%s;;" rhs
 
 end

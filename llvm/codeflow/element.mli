@@ -1,13 +1,15 @@
 module type Exp = sig
   type t
+  type code
   val to_string : t -> string
+  val code_to_string : code -> string
 end
 
 module MakeStatement:
   functor (E:Exp) -> sig
-  module Exp : (Exp with type t = E.t)
+  module Exp : (Exp with type t = E.t and type code = E.code)
   type t
-  val mkAssign: Exp.t -> Exp.t -> t
+  val mkAssign: Exp.code -> Exp.t option -> Exp.t list -> t
   val mkLoad: Exp.t -> Exp.t -> t
   val mkMutInd: (Exp.t * t) list -> t
   val mkLoop: Exp.t list -> t -> t

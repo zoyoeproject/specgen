@@ -2,7 +2,6 @@ open Utils
 
 exception UnsupportType of Llvm.lltype
 exception UnsupportOperand of Llvm.llvalue
-exception UnsupportOpcode
 
 let () =
   Printexc.register_printer
@@ -86,43 +85,6 @@ let is_assign op_code =
   | Select -> true
   | _ -> false
 
-let emit_operator op_code =
-  let open Llvm.Opcode in
-  match op_code with
-  | Ret -> "ret"
-  | Br -> "br"
-  | Switch -> assert false
-  | IndirectBr -> assert false
-  | Invoke -> assert false
-  | Invalid2 -> assert false
-  | Unreachable -> assert false
-  | Add -> "wadd"
-  | FAdd -> "fadd"
-  | Sub -> "wsub"
-  | FSub -> "fsub"
-  | Mul -> "wmul"
-  | FMul -> "fmul"
-  | UDiv -> "udiv"
-  | SDiv -> "sdiv"
-  | FDiv -> "fdiv"
-  | URem -> "urem"
-  | SRem -> "srem"
-  | FRem -> "frem"
-  | Shl -> "wshl"
-  | LShr -> "wlshr"
-  | AShr -> "washr"
-  | And -> "wand"
-  | Or -> "wor"
-  | Xor -> "wxor"
-  | Alloca -> "alloca"
-  | Load -> assert false
-  | Store -> "set_obj"
-  | GetElementPtr -> assert false
-  | ICmp -> "icomp"
-  | FCmp -> "fcomp"
-  | Select -> "if"
-  | PHI -> "phi"
-  | _ -> raise UnsupportOpcode
 
 let rec parse_type llty =
   match Llvm.classify_type llty with
@@ -222,22 +184,9 @@ let emit_llvm_inst lli =
       LlvmStatement.mkFallThrough ()
     end else begin
       if is_assign opcode then
-        let op_name = emit_operator opcode in
-        let r = Printf.sprintf "%s ?= %s;  (*%s  *)"
-          (Llvm.value_name lli)
-          (Array.fold_left (fun acc operand ->
-              acc ^ " " ^  emit_operand () operand
-          ) op_name operands)
-          (Llvm.string_of_llvalue lli)
-        in LlvmStatement.mkComment r
+        LlvmStatement.mkAssign opcode (Some lli) (Array.to_list operands)
       else
-        let op_name = emit_operator opcode in
-        let r = Printf.sprintf "%s;  (*%s  *)"
-          (Array.fold_left (fun acc operand ->
-              acc ^ " " ^  emit_operand () operand
-          ) op_name operands)
-          (Llvm.string_of_llvalue lli)
-        in LlvmStatement.mkComment r
+        LlvmStatement.mkAssign opcode None (Array.to_list operands)
     end
   with e ->
     Printf.printf "\nEmit lli error: %s" (Llvm.string_of_llvalue lli);

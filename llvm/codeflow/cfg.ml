@@ -8,7 +8,7 @@ let debug : ('a, out_channel, unit) format -> 'a
 module type Statement = sig
   module Exp: Exp
   type t
-  val mkAssign: Exp.t -> Exp.t -> t
+  val mkAssign: Exp.code -> Exp.t option -> Exp.t list -> t
   val mkLoad: Exp.t -> Exp.t -> t
   val mkMutInd: (Exp.t * t) list -> t
   val mkLoop: Exp.t list -> t -> t
@@ -420,7 +420,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
         in
         let (branchs, next) = trace closure statement entry_aggro
             merge_aggro (label, branch) translator in
-        let statement = Statement.bind None previous @@ Statement.bind None statement next
+        let statement = Statement.bind None previous @@ next
         in (branchs, statement)
       end
     in
@@ -445,9 +445,9 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   and trace_within (exp, entry) aggro merge translator
     : (Statement.Exp.t * BasicBlock.t) list * Statement.t
      =
-    debug "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
+    Printf.printf "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
     if reach_merge_point merge aggro then begin
-      debug "reach merge point\n";
+      Printf.printf "reach merge point\n";
       [exp, entry], Statement.mkFallThrough ()
     end else begin
       assert (BlockSet.mem entry aggro.blocks);

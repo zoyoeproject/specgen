@@ -1,10 +1,53 @@
 open Codeflow
+
+exception UnsupportOpcode
+
+let op_to_string op_code =
+  let open Llvm.Opcode in
+  match op_code with
+  | Ret -> "ret"
+  | Br -> "br"
+  | Switch -> assert false
+  | IndirectBr -> assert false
+  | Invoke -> assert false
+  | Invalid2 -> assert false
+  | Unreachable -> assert false
+  | Add -> "wadd"
+  | FAdd -> "fadd"
+  | Sub -> "wsub"
+  | FSub -> "fsub"
+  | Mul -> "wmul"
+  | FMul -> "fmul"
+  | UDiv -> "udiv"
+  | SDiv -> "sdiv"
+  | FDiv -> "fdiv"
+  | URem -> "urem"
+  | SRem -> "srem"
+  | FRem -> "frem"
+  | Shl -> "wshl"
+  | LShr -> "wlshr"
+  | AShr -> "washr"
+  | And -> "wand"
+  | Or -> "wor"
+  | Xor -> "wxor"
+  | Alloca -> "alloca"
+  | Load -> assert false
+  | Store -> "set_obj"
+  | GetElementPtr -> assert false
+  | ICmp -> "icomp"
+  | FCmp -> "fcomp"
+  | Select -> "if"
+  | PHI -> "phi"
+  | _ -> raise UnsupportOpcode
+
 module type IndexMap = sig
   val get_block_id : string -> int
 end
 
 module LlvmValue = struct
   type t = Llvm.llvalue
+  type code = Llvm.Opcode.t
+  let code_to_string = op_to_string
   let to_string a = Llvm.value_name a
   let compare a b = String.compare (Llvm.value_name a) (Llvm.value_name b)
 end
