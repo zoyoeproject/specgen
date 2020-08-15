@@ -1,6 +1,40 @@
 open Codeflow
 
 exception UnsupportOpcode
+exception UnsupportOperand of Llvm.llvalue
+
+let value_to_string llvalue =
+  match Llvm.classify_value llvalue with
+  | NullValue -> "NullValue"
+  | Argument -> Llvm.value_name llvalue
+  | ConstantInt -> "(" ^ Llvm.string_of_llvalue llvalue ^ ")"
+  | ConstantExpr -> "cexpr " ^ (Llvm.string_of_llvalue llvalue)
+  | Instruction _ -> (Llvm.value_name llvalue)
+  | BasicBlock -> "basic_block"
+(* Unsupported operand
+  | BasicBlock
+  | InlineAsm
+  | MDNode
+  | MDString
+  | BlockAddress
+  | ConstantAggregateZero
+  | ConstantArray
+  | ConstantDataArray
+  | ConstantDataVector
+  | ConstantFP
+  | ConstantPointerNull
+  | ConstantStruct
+  | ConstantVector
+  | Function
+  | GlobalAlias
+  | GlobalIFunc
+  | GlobalVariable
+  | UndefValue
+  | Instruction of Opcode.t
+*)
+  | _ -> raise (UnsupportOperand llvalue)
+
+
 
 let op_to_string op_code =
   let open Llvm.Opcode in
@@ -48,7 +82,7 @@ module LlvmValue = struct
   type t = Llvm.llvalue
   type code = Llvm.Opcode.t
   let code_to_string = op_to_string
-  let to_string a = Llvm.value_name a
+  let to_string a = value_to_string a
   let compare a b = String.compare (Llvm.value_name a) (Llvm.value_name b)
 end
 

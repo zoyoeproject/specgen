@@ -16,7 +16,7 @@ module type Statement = sig
   val mkDangling: unit -> t
   val mkRaise: int -> t
   val mkComment: string -> t
-  val bind: Exp.t option -> t -> t -> t
+  val bind: Exp.t list -> t -> t -> t
   val emit: Emitter.t -> t -> unit
 end
 
@@ -406,11 +406,11 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
       else
         raise DivergeExitOfAggroSet
 
-    | Dangle -> (exits, Statement.bind None previous statement)
+    | Dangle -> (exits, Statement.bind [] previous statement)
 
     | Merge aggro when is_merge_aggro aggro ->
       (* When we already reach the merge point *)
-        exits, Statement.bind None previous statement
+        exits, Statement.bind [] previous statement
     | Merge _ ->
       begin
         (* We have not reach the merge_point *)
@@ -420,7 +420,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
         in
         let (branchs, next) = trace closure statement entry_aggro
             merge_aggro (label, branch) translator in
-        let statement = Statement.bind None previous @@ next
+        let statement = Statement.bind [] previous @@ next
         in (branchs, statement)
       end
     in
@@ -434,11 +434,11 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
     ) ([],[]) blocks in
     let statement = match stmts with
     | [] -> previous
-    | [_, s] -> Statement.bind None previous s
+    | [_, s] -> Statement.bind [] previous s
     | branchs ->
         let branchs = List.map (fun (e, b) -> (e, b)) branchs in
         let catch = Statement.mkMutInd branchs in
-        Statement.bind None previous catch
+        Statement.bind [] previous catch
     in (clean_exits exists), statement
 
   (* Trace the entry block all the way to exit *)

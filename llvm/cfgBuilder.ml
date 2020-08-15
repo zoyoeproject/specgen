@@ -18,7 +18,7 @@ let emit_llfun_body emitter llfun =
     let llvalue = Llvm.value_of_block llblock in
     let statement = Llvm.fold_left_instrs (fun acc v ->
       let stmt = Lltrans.FuncBuilder.emit_llvm_inst v in
-      CFG.Statement.bind None acc stmt
+      CFG.Statement.bind [] acc stmt
     ) (CFG.Statement.mkFallThrough ()) llblock in
     let llterminator = Llvm.block_terminator llblock in
     let exists = Lltrans.FuncBuilder.translate_exits (Option.get llterminator) in
@@ -39,4 +39,5 @@ let emit_llfun_body emitter llfun =
 let emit_llfun llfun =
   let emitter = Codeflow.Emitter.indent @@ Codeflow.Emitter.mkEmitter () in
   Lltrans.FuncBuilder.emit_func_head llfun;
-  emit_llfun_body emitter llfun
+  emit_llfun_body emitter llfun;
+  Printf.printf "\n"

@@ -27,7 +27,7 @@ module type Statement = sig
   val mkDangling: unit -> t
   val mkRaise: int -> t
   val mkComment: string -> t
-  val bind: Exp.t option -> t -> t -> t
+  val bind: Exp.t list -> t -> t -> t
   val emit: Emitter.t -> t -> unit
 end
 

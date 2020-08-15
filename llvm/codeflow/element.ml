@@ -17,7 +17,7 @@ module MakeStatement (E:Exp) = struct
     | Load of (Exp.t * Exp.t)
     | MutInd of (Exp.t * t) list
     | Loop of (Exp.t list * t)
-    | Bind of (Exp.t option * t * t)
+    | Bind of (Exp.t list * t * t)
     | FallThrough (* empty statement *)
     | Dangling (* non'a tinate statement *)
     | Raise of int

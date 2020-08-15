@@ -6,6 +6,7 @@ let _ =
   (* Uncomment this for debugging purpose
    * Llvm.dump_module llm;
    *)
+  Llvm.dump_module llm;
 
   Llvm.iter_functions CfgBuilder.emit_llfun llm;
 

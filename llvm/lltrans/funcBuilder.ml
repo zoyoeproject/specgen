@@ -1,7 +1,6 @@
 open Utils
 
 exception UnsupportType of Llvm.lltype
-exception UnsupportOperand of Llvm.llvalue
 
 let () =
   Printexc.register_printer
@@ -78,7 +77,7 @@ let is_assign op_code =
   | Alloca -> true
   | Load -> true
   | GetElementPtr -> assert false
-  | Ret -> false
+  | Ret -> assert false
   | ICmp -> true
   | FCmp -> true
   | PHI -> true
@@ -111,38 +110,6 @@ let emit_func_head lv =
     ) "body" ptypes)
     (coq_type (parse_type rettyp))
 
-let emit_operand _ llvalue =
-  match Llvm.classify_value llvalue with
-  | NullValue -> "NullValue"
-  | Argument -> Llvm.value_name llvalue
-  | ConstantInt -> "(" ^ Llvm.string_of_llvalue llvalue ^ ")"
-  | ConstantExpr -> "cexpr " ^ (Llvm.string_of_llvalue llvalue)
-  | Instruction _ -> (Llvm.value_name llvalue)
-  | BasicBlock -> "basic_block"
-
-(* Unsupported operand
-  | BasicBlock
-  | InlineAsm
-  | MDNode
-  | MDString
-  | BlockAddress
-  | ConstantAggregateZero
-  | ConstantArray
-  | ConstantDataArray
-  | ConstantDataVector
-  | ConstantFP
-  | ConstantPointerNull
-  | ConstantStruct
-  | ConstantVector
-  | Function
-  | GlobalAlias
-  | GlobalIFunc
-  | GlobalVariable
-  | UndefValue
-  | Instruction of Opcode.t
-*)
-  | _ -> raise (UnsupportOperand llvalue)
-
 let get_opcode lli =
   match Llvm.classify_value lli with
   | Instruction opcode -> opcode
@@ -159,12 +126,8 @@ let translate_exits_br lli =
     [(exp, Llvm.block_of_value v1)]
   | [|exp|] ->
     [(exp, Llvm.block_of_value exp)]
-  | ops -> begin
+  | _ -> begin
       Printf.printf "%s\n" (Llvm.string_of_llvalue lli);
-      let ops_str = Array.fold_left (fun acc operand ->
-              acc ^ " " ^  emit_operand () operand
-          ) "ops: " ops in
-      Printf.printf "%s\n" ops_str;
       assert false
     end
 
@@ -181,7 +144,9 @@ let emit_llvm_inst lli =
     let operands = get_operands lli in
     let opcode = get_opcode lli in
     if Llvm.is_terminator lli then begin
-      LlvmStatement.mkFallThrough ()
+      match opcode with
+      | Ret -> LlvmStatement.mkAssign opcode None (Array.to_list operands)
+      | _ -> LlvmStatement.mkFallThrough ()
     end else begin
       if is_assign opcode then
         LlvmStatement.mkAssign opcode (Some lli) (Array.to_list operands)
