@@ -30,6 +30,7 @@ module MakeStatement (E:Exp) = struct
   let mkDangling _ = Dangling
   let mkRaise i = Raise i
   let mkComment c = Comment c
+
   let bind v arg app = match arg with
      | FallThrough -> app
      | _ -> Bind (v, arg, app)

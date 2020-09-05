@@ -110,14 +110,6 @@ let emit_func_head lv =
     ) "body" ptypes)
     (coq_type (parse_type rettyp))
 
-let get_opcode lli =
-  match Llvm.classify_value lli with
-  | Instruction opcode -> opcode
-  | _ -> assert false
-
-let get_operands lli =
-  Array.init (Llvm.num_operands lli) (fun n -> Llvm.operand lli n)
-
 let translate_exits_br lli =
   match get_operands lli with
   | [|exp; v1; v2|] ->
@@ -139,19 +131,22 @@ let translate_exits lli =
     let succs = Array.to_list (Llvm.successors lli) in
     List.map (fun s -> Llvm.value_of_block s, s) succs
 
-let emit_llvm_inst lli =
+let emit_llvm_inst latice lli =
   try
     let operands = get_operands lli in
     let opcode = get_opcode lli in
     if Llvm.is_terminator lli then begin
       match opcode with
-      | Ret -> LlvmStatement.mkAssign opcode None (Array.to_list operands)
+      | Ret -> LlvmStatement.mkAssign opcode None
+          (List.map latice (Array.to_list operands))
       | _ -> LlvmStatement.mkFallThrough ()
     end else begin
       if is_assign opcode then
-        LlvmStatement.mkAssign opcode (Some lli) (Array.to_list operands)
+        LlvmStatement.mkAssign opcode
+          (Some (latice lli)) (List.map latice (Array.to_list operands))
       else
-        LlvmStatement.mkAssign opcode None (Array.to_list operands)
+        LlvmStatement.mkAssign opcode None
+          (List.map latice (Array.to_list operands))
     end
   with e ->
     Printf.printf "\nEmit lli error: %s" (Llvm.string_of_llvalue lli);

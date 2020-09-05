@@ -2,11 +2,30 @@ open Lltrans.Utils
 
 let emit_llfun_body emitter llfun =
   let module ValueMap = Map.Make(String) in
+  let module LlvalueMap = Map.Make(struct
+    type t = Llvm.llvalue
+    let compare a b = String.compare (Llvm.value_name a) (Llvm.value_name b)
+    end
+  ) in
   let bbmap, _ = Llvm.fold_left_blocks (fun (map,i) llb ->
     let llv = Llvm.value_of_block llb in
     let llname = Llvm.value_name llv in
     ValueMap.add llname i map, i + 1
   ) (ValueMap.empty, 0) llfun in
+
+  let phi_lattice = Llvm.fold_left_blocks (fun m bb->
+    Llvm.fold_left_instrs (fun acc v ->
+       update_phi_lattice (fun lattice src lli ->
+         LlvalueMap.add src lli lattice
+       ) acc v
+    ) m bb
+  ) LlvalueMap.empty llfun in
+
+  let var_lattice lli =
+    match LlvalueMap.find_opt lli phi_lattice with
+    | Some l -> l
+    | _ -> lli
+  in
 
   let module BB = BasicBlock (struct
     let get_block_id na = ValueMap.find na bbmap
@@ -17,7 +36,7 @@ let emit_llfun_body emitter llfun =
   let translator llblock =
     let llvalue = Llvm.value_of_block llblock in
     let statement = Llvm.fold_left_instrs (fun acc v ->
-      let stmt = Lltrans.FuncBuilder.emit_llvm_inst v in
+      let stmt = Lltrans.FuncBuilder.emit_llvm_inst var_lattice v in
       CFG.Statement.bind [] acc stmt
     ) (CFG.Statement.mkFallThrough ()) llblock in
     let llterminator = Llvm.block_terminator llblock in

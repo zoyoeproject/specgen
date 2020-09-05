@@ -78,6 +78,21 @@ module type IndexMap = sig
   val get_block_id : string -> int
 end
 
+let get_opcode lli =
+  match Llvm.classify_value lli with
+  | Instruction opcode -> opcode
+  | _ -> assert false
+
+let get_operands lli =
+  Array.init (Llvm.num_operands lli) (fun n -> Llvm.operand lli n)
+
+let update_phi_lattice lattice init lli =
+  let opcode = get_opcode lli in
+  let operands = get_operands lli in
+  match opcode with
+  | PHI -> Array.fold_left (fun l src -> lattice l src lli) init operands
+  | _ -> init
+
 module LlvmValue = struct
   type t = Llvm.llvalue
   type code = Llvm.Opcode.t
