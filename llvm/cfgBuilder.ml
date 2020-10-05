@@ -22,6 +22,8 @@ let emit_llfun_body emitter llfun =
   ) LlvalueMap.empty llfun in
 
   let var_lattice lli =
+    let typ = Llvm.type_of lli in
+    Lltrans.TypeBuilder.record_type typ;
     match LlvalueMap.find_opt lli phi_lattice with
     | Some l -> l
     | _ -> lli
@@ -58,5 +60,6 @@ let emit_llfun_body emitter llfun =
 let emit_llfun llfun =
   let emitter = Codeflow.Emitter.indent @@ Codeflow.Emitter.mkEmitter () in
   Lltrans.FuncBuilder.emit_func_head llfun;
+  Lltrans.TypeBuilder.emit_types emitter;
   emit_llfun_body emitter llfun;
   Printf.printf "\n"

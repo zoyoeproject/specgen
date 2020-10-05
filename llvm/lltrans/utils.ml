@@ -2,6 +2,33 @@ open Codeflow
 
 exception UnsupportOpcode
 exception UnsupportOperand of Llvm.llvalue
+exception UnsupportType of Llvm.lltype
+
+let () =
+  Printexc.register_printer
+    (function
+      | UnsupportType lltyp -> Some (Printf.sprintf "UnsupportType[%s]" (Llvm.string_of_lltype lltyp))
+      | _ -> None
+    )
+
+let () =
+  Printexc.register_printer
+    (function
+      | UnsupportOperand llvalue -> Some (Printf.sprintf "UnsupportOperand[%s]" (Llvm.string_of_llvalue llvalue))
+      | _ -> None
+    )
+
+type name =
+  | Anonymous
+  | Name of string
+
+let string_of_name na = match na with
+  | Anonymous -> assert false
+  | Name str -> str
+
+let mkName stropt = match stropt with
+  | None -> Anonymous
+  | Some str -> Name str
 
 let value_to_string llvalue =
   match Llvm.classify_value llvalue with

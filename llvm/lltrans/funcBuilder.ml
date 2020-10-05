@@ -1,57 +1,5 @@
 open Utils
-
-exception UnsupportType of Llvm.lltype
-
-let () =
-  Printexc.register_printer
-    (function
-      | UnsupportType lltyp -> Some (Printf.sprintf "UnsupportType[%s]" (Llvm.string_of_lltype lltyp))
-      | _ -> None
-    )
-
-let () =
-  Printexc.register_printer
-    (function
-      | UnsupportOperand llvalue -> Some (Printf.sprintf "UnsupportOperand[%s]" (Llvm.string_of_llvalue llvalue))
-      | _ -> None
-    )
-
-type name =
-  | Anonymous
-  | Name of string
-
-let string_of_name na = match na with
-  | Anonymous -> assert false
-  | Name str -> str
-
-let mkName stropt = match stropt with
-  | None -> Anonymous
-  | Some str -> Name str
-
-type c_type =
-  | Void
-  | Int
-  | Ref of c_type
-  | Struct of name
-  | Function of name
-
-(*
-let rec indicator_of ctype =
-  match ctype with
-  | Void -> "Unit"
-  | Int -> "Int"
-  | Ref ctype -> "Ref " ^ indicator_of ctype
-  | Struct na -> "T_" ^ string_of_name na
-  | Function na -> "F_" ^ string_of_name na
-*)
-
-let rec coq_type ctype =
-  match ctype with
-  | Void -> "void"
-  | Int -> "Z"
-  | Ref ctype -> "(reference " ^ coq_type ctype ^ ")"
-  | Struct na -> string_of_name na ^ ".t"
-  | Function na -> string_of_name na ^ ".body"
+open TypeBuilder
 
 let is_assign op_code =
   let open Llvm.Opcode in
@@ -85,16 +33,6 @@ let is_assign op_code =
   | _ -> false
 
 
-let rec parse_type llty =
-  match Llvm.classify_type llty with
-  | Llvm.TypeKind.Void -> Void
-  | Llvm.TypeKind.Integer -> Int
-  | Llvm.TypeKind.Pointer -> Ref (parse_type (Llvm.element_type llty))
-  | Llvm.TypeKind.Array -> Ref (parse_type (Llvm.element_type llty))
-  | Llvm.TypeKind.Struct -> Struct (mkName (Llvm.struct_name llty))
-  | Llvm.TypeKind.Function -> Function (mkName (Some "func"))
-  | _ -> raise (UnsupportType llty)
-
 let emit_func_head lv =
   (* name should be used for file name *)
   (* let func_name = Llvm.value_name lv; *)
@@ -104,11 +42,11 @@ let emit_func_head lv =
   let rettyp = Llvm.return_type func_ty in
   Printf.printf "%s :\n  %s :=\n"
     (Array.fold_left (fun acc llty ->
-      let typ = parse_type llty in
+      let typ = lltype_to_ctype llty in
       let coqtyp = coq_type typ in
       acc ^ " " ^ coqtyp
     ) "body" ptypes)
-    (coq_type (parse_type rettyp))
+    (coq_type (lltype_to_ctype rettyp))
 
 let translate_exits_br lli =
   match get_operands lli with
