@@ -24,7 +24,7 @@ let is_assign op_code =
   | Xor -> true
   | Alloca -> true
   | Load -> true
-  | GetElementPtr -> assert false
+  | GetElementPtr -> true (* This is the only way to get filed info *)
   | Ret -> assert false
   | ICmp -> true
   | FCmp -> true
@@ -40,7 +40,7 @@ let emit_func_head lv =
   let func_ty = Llvm.element_type @@ Llvm.type_of lv in
   let ptypes = Llvm.param_types func_ty in
   let rettyp = Llvm.return_type func_ty in
-  Printf.printf "%s :\n  %s :=\n"
+  Printf.printf "%s : %s :="
     (Array.fold_left (fun acc llty ->
       let typ = lltype_to_ctype llty in
       let coqtyp = coq_type typ in

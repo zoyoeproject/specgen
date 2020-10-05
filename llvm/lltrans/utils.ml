@@ -1,6 +1,6 @@
 open Codeflow
 
-exception UnsupportOpcode
+exception UnsupportOpcode of Llvm.Opcode.t
 exception UnsupportOperand of Llvm.llvalue
 exception UnsupportType of Llvm.lltype
 
@@ -92,14 +92,30 @@ let op_to_string op_code =
   | Or -> "wor"
   | Xor -> "wxor"
   | Alloca -> "alloca"
-  | Load -> assert false
+  | Load -> "get_obj"
   | Store -> "set_obj"
-  | GetElementPtr -> assert false
+  | GetElementPtr -> "field"
   | ICmp -> "icomp"
   | FCmp -> "fcomp"
   | Select -> "if"
   | PHI -> "phi"
-  | _ -> raise UnsupportOpcode
+
+  | Trunc (* Cast Operators *)
+  | ZExt -> "zext"
+  | SExt -> "sext"
+(*
+  | FPToUI
+  | FPToSI
+  | UIToFP
+  | SIToFP
+  | FPTrunc
+  | FPExt
+  | PtrToInt
+  | IntToPtr
+  | BitCast
+*)
+
+  | _ -> raise (UnsupportOpcode op_code)
 
 module type IndexMap = sig
   val get_block_id : string -> int

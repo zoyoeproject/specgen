@@ -177,7 +177,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
       let nexts = List.fold_left (fun acc a ->
         BlockClosure.id a ^ ";" ^ acc
       ) "" aggs in
-      print_endline @@ (BlockClosure.id aggo) ^ " -> " ^ nexts
+      debug "%s -> %s" (BlockClosure.id aggo) nexts
     ) aggro
 
   let emitter _ = raise @@ CFGError (MultiEntry BlockSet.empty, None)
@@ -445,9 +445,9 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   and trace_within (exp, entry) aggro merge translator
     : (Statement.Exp.t * BasicBlock.t) list * Statement.t
      =
-    Printf.printf "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
+    debug "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
     if reach_merge_point merge aggro then begin
-      Printf.printf "reach merge point\n";
+      debug "reach merge point\n";
       [exp, entry], Statement.mkFallThrough ()
     end else begin
       assert (BlockSet.mem entry aggro.blocks);

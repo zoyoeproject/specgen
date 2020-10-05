@@ -60,6 +60,6 @@ let emit_llfun_body emitter llfun =
 let emit_llfun llfun =
   let emitter = Codeflow.Emitter.indent @@ Codeflow.Emitter.mkEmitter () in
   Lltrans.FuncBuilder.emit_func_head llfun;
-  Lltrans.TypeBuilder.emit_types emitter;
   emit_llfun_body emitter llfun;
-  Printf.printf "\n"
+  Printf.printf "\n";
+  ()

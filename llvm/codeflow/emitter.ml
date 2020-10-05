@@ -5,5 +5,5 @@ type t = {
 let indent t = {ident = "  " ^ t.ident}
 let mkEmitter _ = {ident = ""}
 let emitLine t x =
-  Format.printf "\n%s" t.ident;
-  Format.printf x
+  Printf.printf "\n%s" t.ident;
+  Printf.printf x

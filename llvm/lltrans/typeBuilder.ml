@@ -51,11 +51,20 @@ let rec build_type_key lltyp =
 
 let lltype_table = Hashtbl.create 20
 
-let record_type lltyp =
+let rec record_type lltyp =
   match Llvm.classify_type lltyp with
-  | Llvm.TypeKind.Pointer -> ()
-  | Llvm.TypeKind.Array -> ()
-  | _ -> Hashtbl.replace lltype_table (build_type_key lltyp) lltyp
+  | Llvm.TypeKind.Pointer -> record_type @@ Llvm.element_type lltyp
+  | Llvm.TypeKind.Array -> record_type @@ Llvm.element_type lltyp
+  | Llvm.TypeKind.Struct -> begin
+      Hashtbl.replace lltype_table (build_type_key lltyp) lltyp;
+      Array.iter (fun t ->
+        let type_name = lltype_to_ctype t in
+        match type_name with
+        | Struct _ -> record_type t
+        | _ -> ()
+      ) (Llvm.struct_element_types lltyp)
+    end
+  | _ -> ()
 
 let emit_type_indicator emitter =
   let open Codeflow in
@@ -70,20 +79,25 @@ let emit_type_indicator emitter =
 let emit_record_type emitter lltyp =
   let open Codeflow in
   let type_name = lltype_to_ctype lltyp in
-  Emitter.emitLine emitter "module %s." (coq_type_module type_name);
-  Emitter.emitLine emitter "Record t := {";
-  let indent_emitter = Emitter.indent emitter in
+  Emitter.emitLine emitter "Module %s." (coq_type_module type_name);
+  let e2 = Emitter.indent emitter in
+  Emitter.emitLine e2 "Record t := {";
+  let indent_emitter = Emitter.indent e2 in
   Array.iter (fun t ->
     let type_name = lltype_to_ctype t in
     Emitter.emitLine indent_emitter ":= %s;" (coq_type type_name)
   ) (Llvm.struct_element_types lltyp);
-  Emitter.emitLine emitter "}."
+  Emitter.emitLine e2 "}.";
+  Emitter.emitLine emitter "End."
 
 let emit_types emitter =
   let type_list = List.of_seq @@ Hashtbl.to_seq_keys lltype_table in
   let type_list = List.sort (fun x y -> String.compare x y) type_list in
   ignore @@ List.iter (fun c ->
     let lltyp = Hashtbl.find lltype_table c in
-    emit_record_type emitter lltyp
+    let type_name = lltype_to_ctype lltyp in
+    match type_name with
+    | Struct _ -> emit_record_type emitter lltyp
+    | _ -> ()
   ) type_list
 

@@ -6,9 +6,11 @@ let _ =
   (* Uncomment this for debugging purpose
    * Llvm.dump_module llm;
    *)
-  Llvm.dump_module llm;
 
   Llvm.iter_functions CfgBuilder.emit_llfun llm;
+
+  let emitter = Codeflow.Emitter.mkEmitter () in
+  Lltrans.TypeBuilder.emit_types emitter;
 
   (*
   Printf.printf "*** iter_globals ***\n";
