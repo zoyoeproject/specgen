@@ -30,6 +30,18 @@ let is_assign op_code =
   | FCmp -> true
   | PHI -> true
   | Select -> true
+  | Trunc -> true (* Cast Operators *)
+  | ZExt -> true
+  | SExt -> true
+  | FPToUI -> true
+  | FPToSI -> true
+  | UIToFP -> true
+  | SIToFP -> true
+  | FPTrunc -> true
+  | FPExt -> true
+  | PtrToInt -> true
+  | IntToPtr -> true
+  | BitCast -> true
   | _ -> false
 
 
@@ -39,13 +51,17 @@ let emit_func_head lv =
   Printf.printf "Definition\n";
   let func_ty = Llvm.element_type @@ Llvm.type_of lv in
   let ptypes = Llvm.param_types func_ty in
+  let pargs = Llvm.params lv in
+  let arg_type_pairs = Array.map2 (fun n t ->
+      let typ = lltype_to_ctype t in
+      let coqtyp = coq_type typ in
+      Llvm.value_name n, coqtyp
+  ) pargs ptypes in
   let rettyp = Llvm.return_type func_ty in
   Printf.printf "%s : %s :="
-    (Array.fold_left (fun acc llty ->
-      let typ = lltype_to_ctype llty in
-      let coqtyp = coq_type typ in
-      acc ^ " " ^ coqtyp
-    ) "body" ptypes)
+    (Array.fold_left (fun acc (n,t) ->
+      acc ^ " (" ^ n ^ ":" ^ t ^")"
+    ) "body" arg_type_pairs)
     (coq_type (lltype_to_ctype rettyp))
 
 let translate_exits_br lli =
