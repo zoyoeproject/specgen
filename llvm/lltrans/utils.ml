@@ -18,6 +18,8 @@ let () =
       | _ -> None
     )
 
+external call_info: Llvm.llvalue -> string = "llvm_call_info"
+
 type name =
   | Anonymous
   | Name of string

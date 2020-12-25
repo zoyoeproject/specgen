@@ -96,7 +96,9 @@ let emit_record_type emitter lltyp =
   let n = Array.length element_types in
   Array.iteri (fun i t ->
     let type_name = lltype_to_ctype t in
-    Emitter.emitLine indent_emitter ": %s%s" (coq_type type_name)
+    Emitter.emitLine indent_emitter "field_%d: %s%s"
+      i
+      (coq_type type_name)
       (if i = n-1 then "" else ";")
   ) element_types;
   Emitter.emitLine e2 "}.";

@@ -1,4 +1,9 @@
 (library
  (name lltrans)
+ (foreign_stubs
+  (language cxx)
+  (names utils)
+  (flags -std=c++11 -I/usr/local/opt/llvm/include)
+ )
  (libraries codeflow Llvm)
 )

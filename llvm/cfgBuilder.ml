@@ -58,8 +58,12 @@ let emit_llfun_body emitter llfun =
   CFG.Statement.emit emitter (snd st)
 
 let emit_llfun llfun =
-  let emitter = Codeflow.Emitter.indent @@ Codeflow.Emitter.mkEmitter () in
-  Lltrans.FuncBuilder.emit_func_head llfun;
-  emit_llfun_body emitter llfun;
-  Printf.printf "\n";
-  ()
+  if (Lltrans.FuncBuilder.is_debug_fun_decl llfun) then
+    ()
+  else begin
+    let emitter = Codeflow.Emitter.indent @@ Codeflow.Emitter.mkEmitter () in
+    Lltrans.FuncBuilder.emit_func_head llfun;
+    emit_llfun_body emitter llfun;
+    Printf.printf "\n";
+    ()
+  end

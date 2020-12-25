@@ -45,6 +45,10 @@ let is_assign op_code =
   | _ -> false
 
 
+let is_debug_fun_decl lv =
+  let func_name = Llvm.value_name lv in
+  func_name = "llvm.dbg.value"
+
 let emit_func_head lv =
   (* name should be used for file name *)
   (* let func_name = Llvm.value_name lv; *)
@@ -85,11 +89,22 @@ let translate_exits lli =
     let succs = Array.to_list (Llvm.successors lli) in
     List.map (fun s -> Llvm.value_of_block s, s) succs
 
+let is_debug_call opcode lli =
+  let open Llvm.Opcode in
+  match opcode with
+  | Call -> begin
+      Printf.printf "calling %s" (call_info lli);
+      true
+    end
+  | _ -> false
+
 let emit_llvm_inst latice lli =
   try
     let operands = get_operands lli in
     let opcode = get_opcode lli in
-    if Llvm.is_terminator lli then begin
+    if is_debug_call opcode lli then
+       LlvmStatement.mkComment "debug info"
+    else if Llvm.is_terminator lli then begin
       match opcode with
       | Ret -> LlvmStatement.mkAssign opcode None
           (List.map latice (Array.to_list operands))

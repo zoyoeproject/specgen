@@ -1,0 +1,11 @@
+(library
+    (name llvmdinfo)
+    (public_name llvmdinfo)
+    (wrapped false)
+    (libraries llvm)
+    (foreign_stubs
+      (language cxx)
+      (names llvmdinfo)
+      (flags (:standard -I/Users/leyingan/.opam/default/.opam-switch/build/llvm.10.0.0/include))
+    )
+)
