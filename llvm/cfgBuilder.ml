@@ -25,7 +25,7 @@ let emit_llfun_body emitter llfun =
     let typ = Llvm.type_of lli in
     Lltrans.TypeBuilder.record_type typ;
     match LlvalueMap.find_opt lli phi_lattice with
-    | Some l -> l
+    | Some _ (* l *) -> lli
     | _ -> lli
   in
 

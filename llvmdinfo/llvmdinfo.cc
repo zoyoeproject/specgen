@@ -49,7 +49,7 @@ CAMLprim value llvm_get_fields_name (MDNode *mdnode) {
   nodes = alloc(eles.size(), 0);
   for (unsigned i = 0; i < eles.size(); i++) {
     name = caml_copy_string((cast_or_null<DIType>(eles[i]))->getName().data());
-    printf ("field metadata %d\n", (cast_or_null<DIType>(eles[i]))->getMetadataID());
+    //printf ("field metadata %d\n", (cast_or_null<DIType>(eles[i]))->getMetadataID());
     Store_field(nodes, i, name);
   }
   CAMLreturn(nodes);
@@ -85,10 +85,11 @@ CAMLprim value llvm_get_named_metadata (LLVMModuleRef m) {
   names = alloc(sz, 0);
   mdref_cursor = LLVMGetFirstNamedMetadata(m);
   sz = 0;
-  for (; mdref_cursor != nullptr; sz++, mdref_cursor = LLVMGetNextNamedMetadata(mdref_cursor)) {
+  for (; mdref_cursor != nullptr;
+    sz++, mdref_cursor = LLVMGetNextNamedMetadata(mdref_cursor)) {
     const char *name = LLVMGetNamedMetadataName(mdref_cursor, &len);
     str = caml_alloc_string(len);
-    memcpy(String_val(str), name, len);
+    memcpy((void*)String_val(str), name, len);
     Store_field(names, sz, str);
   }
   CAMLreturn(names);

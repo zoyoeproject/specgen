@@ -35,7 +35,7 @@ module MakeStatement (E:Exp) = struct
      | FallThrough -> app
      | _ -> Bind (v, arg, app)
   let rec emit emitter s = match s with
-    | Comment s -> Emitter.emitLine emitter "%s" s
+    | Comment s -> Emitter.emitLine emitter "(* %s *)" s
     | Bind (_, s1, s2) -> emit emitter s1; emit emitter s2
     | MutInd ls ->
       Emitter.emitLine emitter "let _ = cases";

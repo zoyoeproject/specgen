@@ -97,20 +97,38 @@ let is_debug_call opcode _ =
     end
   | _ -> false
 
+let first_operand_has_struct_type operands =
+   let typ = Llvm.type_of operands.(0) in
+   match Llvm.classify_type typ with
+   | Llvm.TypeKind.Pointer -> begin
+       let coq_typ = TypeBuilder.lltype_to_ctype
+         (Llvm.element_type typ) in
+       is_struct_type coq_typ
+     end
+   | _ -> false
+
 let emit_llvm_inst latice lli =
   try
     let operands = get_operands lli in
     let opcode = get_opcode lli in
-    if is_debug_call opcode lli then
-       LlvmStatement.mkComment "debug info"
-    else if Llvm.is_terminator lli then begin
+    if is_debug_call opcode lli then begin
+       Array.iter (fun operand ->
+         ignore @@ Option.map (fun mn ->
+           Llvmdinfo.register_dinfo mn
+         ) (Llvmdinfo.llvalue_to_metadata operand)
+       ) operands;
+       LlvmStatement.mkComment "llvm debug info detected"
+    end else if Llvm.is_terminator lli then begin
       match opcode with
       | Ret -> LlvmStatement.mkAssign opcode None
           (List.map latice (Array.to_list operands))
       | _ -> LlvmStatement.mkFallThrough ()
     end else begin
       if is_assign opcode then
-        LlvmStatement.mkAssign opcode
+        match opcode with
+        | GetElementPtr when first_operand_has_struct_type operands ->
+          LlvmStatement.mkAssign opcode (Some (latice lli)) [latice operands.(0); operands.(2)]
+        | _ -> LlvmStatement.mkAssign opcode
           (Some (latice lli)) (List.map latice (Array.to_list operands))
       else
         LlvmStatement.mkAssign opcode None

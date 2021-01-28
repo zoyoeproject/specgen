@@ -6,6 +6,6 @@
     (foreign_stubs
       (language cxx)
       (names llvmdinfo)
-      (flags (:standard -I/usr/include/llvm-c-10/ -I/usr/include/llvm-10/))
+      (flags (:standard -I/usr/local/Cellar/llvm/10.0.0_3/include -std=c++14))
     )
 )

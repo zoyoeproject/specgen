@@ -67,3 +67,10 @@ let register_metavalue operand =
   | Some mnode -> register_dinfo mnode
   | None -> ()
 
+exception UnknownComposeType of string
+
+let get_field_name tname field_idx =
+  let fields = Hashtbl.find_opt type_field_tbl tname in
+  match fields with
+  | None -> raise (UnknownComposeType tname)
+  | Some ls -> ls.(field_idx)

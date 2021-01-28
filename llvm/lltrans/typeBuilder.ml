@@ -1,11 +1,21 @@
 open Utils
 
+exception DestTypeError
+
 type type_name =
   | Void
   | Int
   | Ref of type_name
   | Struct of name
   | Function of name
+
+let dest_struct_name = function
+  | Struct n -> n
+  | _ -> raise DestTypeError
+
+let is_struct_type = function
+  | Struct _ -> true
+  | _ -> false
 
 let coq_type_module tname =
   match tname with
@@ -28,14 +38,18 @@ and indicator_of tname =
   | Struct na -> "T_" ^ string_of_name na
   | Function na -> "F_" ^ string_of_name na
 
-let extract_struct_name s =
-  mkName @@ Option.map (fun s ->
+let raw_struct_name s =
+  Option.map (fun s ->
     let r = String.split_on_char '.' s in
     match r with
     | "struct" :: [n] -> n
     | n :: ["struct"] -> n
     | _ -> Printf.printf "%s:%s" s (List.hd r) ; assert false
   ) s
+
+
+let extract_struct_name s =
+  mkName @@ raw_struct_name s
 
 let rec lltype_to_ctype llty =
   match Llvm.classify_type llty with
@@ -96,8 +110,9 @@ let emit_record_type emitter lltyp =
   let n = Array.length element_types in
   Array.iteri (fun i t ->
     let type_name = lltype_to_ctype t in
-    Emitter.emitLine indent_emitter "field_%d: %s%s"
-      i
+    let struct_name = Option.get (raw_struct_name (Llvm.struct_name lltyp)) in
+    Emitter.emitLine indent_emitter "%s: %s%s"
+      (Llvmdinfo.get_field_name struct_name i)
       (coq_type type_name)
       (if i = n-1 then "" else ";")
   ) element_types;

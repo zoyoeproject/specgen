@@ -8,7 +8,9 @@ struct A {
 };
 
 int foo (struct A* y) {
-  if (y >1) {
-  return y->x1;
-  } else return 12;
+  if (y->x > 1) {
+    return y->x1;
+  } else {
+    return 12;
+  }
 }
