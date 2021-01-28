@@ -6,6 +6,6 @@
     (foreign_stubs
       (language cxx)
       (names llvmdinfo)
-      (flags (:standard -I/Users/leyingan/.opam/default/.opam-switch/build/llvm.10.0.0/include))
+      (flags (:standard -I/usr/include/llvm-c-10/ -I/usr/include/llvm-10/))
     )
 )

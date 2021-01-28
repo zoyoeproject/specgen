@@ -89,11 +89,10 @@ let translate_exits lli =
     let succs = Array.to_list (Llvm.successors lli) in
     List.map (fun s -> Llvm.value_of_block s, s) succs
 
-let is_debug_call opcode lli =
+let is_debug_call opcode _ =
   let open Llvm.Opcode in
   match opcode with
   | Call -> begin
-      Printf.printf "calling %s" (call_info lli);
       true
     end
   | _ -> false
