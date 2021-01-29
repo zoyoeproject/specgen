@@ -71,11 +71,11 @@ let emit_func_head lv =
 let translate_exits_br lli =
   match get_operands lli with
   | [|exp; v1; v2|] ->
-    [(exp, Llvm.block_of_value v1); (exp, Llvm.block_of_value v2)]
+    [("true", exp, Llvm.block_of_value v1); ("false", exp, Llvm.block_of_value v2)]
   | [|exp; v1|] ->
-    [(exp, Llvm.block_of_value v1)]
+    [("cond", exp, Llvm.block_of_value v1)]
   | [|exp|] ->
-    [(exp, Llvm.block_of_value exp)]
+    [("cond", exp, Llvm.block_of_value exp)]
   | _ -> begin
       Printf.printf "%s\n" (Llvm.string_of_llvalue lli);
       assert false
@@ -87,7 +87,7 @@ let translate_exits lli =
   | Br -> translate_exits_br lli
   | _ ->
     let succs = Array.to_list (Llvm.successors lli) in
-    List.map (fun s -> Llvm.value_of_block s, s) succs
+    List.map (fun s -> "cond", (Llvm.value_of_block s), s) succs
 
 let is_debug_call opcode _ =
   let open Llvm.Opcode in

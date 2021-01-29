@@ -15,7 +15,7 @@ module MakeStatement (E:Exp) = struct
     | Comment of string
     | Assign of (Exp.code * Exp.t option * Exp.t list)
     | Load of (Exp.t * Exp.t)
-    | MutInd of (Exp.t * t) list
+    | MutInd of (string * Exp.t * t) list
     | Loop of (Exp.t list * t)
     | Bind of (Exp.t list * t * t)
     | FallThrough (* empty statement *)
@@ -38,10 +38,11 @@ module MakeStatement (E:Exp) = struct
     | Comment s -> Emitter.emitLine emitter "(* %s *)" s
     | Bind (_, s1, s2) -> emit emitter s1; emit emitter s2
     | MutInd ls ->
-      Emitter.emitLine emitter "let _ = cases";
+      let _, cond, _ = List.hd ls in
+      Emitter.emitLine emitter "let _ = match %s with" (Exp.to_string cond);
       let emitter = Emitter.indent emitter in
-      ignore @@ List.map (fun (e,s) ->
-        Emitter.emitLine emitter "%s =>" (Exp.to_string e);
+      ignore @@ List.map (fun (e,_,s) ->
+        Emitter.emitLine emitter "%s =>" e;
         let emitter' = Emitter.indent emitter in
         emit emitter' s
       ) ls;

@@ -10,7 +10,7 @@ module type Statement = sig
   type t
   val mkAssign: Exp.code -> Exp.t option -> Exp.t list -> t
   val mkLoad: Exp.t -> Exp.t -> t
-  val mkMutInd: (Exp.t * t) list -> t
+  val mkMutInd: (string * Exp.t * t) list -> t
   val mkLoop: Exp.t list -> t -> t
   val mkFallThrough: unit -> t
   val mkDangling: unit -> t
@@ -163,7 +163,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
 
   module ExitSet = Set.Make (Exit)
 
-  type entry = Statement.Exp.t * BasicBlock.t
+  type entry = string * Statement.Exp.t * BasicBlock.t
   type translator = BasicBlock.t -> ((Statement.Exp.t * Statement.t) * entry list)
 
   type error =
@@ -427,16 +427,15 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
     r
 
   and trace_blocks (_, previous) blocks aggro merge translator =
-    let exists, stmts = List.fold_left (fun (es, stmts) (exp, b) ->
+    let exists, stmts = List.fold_left (fun (es, stmts) (label, exp, b) ->
       let next = BlockClosure.find_aggro b aggro in
       let exists, stmt = trace_within (exp, b) !next merge translator in
-      exists @ es, stmts @ [exp, stmt]
+      exists @ es, stmts @ [label, exp, stmt]
     ) ([],[]) blocks in
     let statement = match stmts with
     | [] -> previous
-    | [_, s] -> Statement.bind [] previous s
+    | [_, _, s] -> Statement.bind [] previous s
     | branchs ->
-        let branchs = List.map (fun (e, b) -> (e, b)) branchs in
         let catch = Statement.mkMutInd branchs in
         Statement.bind [] previous catch
     in (clean_exits exists), statement

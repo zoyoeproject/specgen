@@ -21,7 +21,7 @@ module type Statement = sig
   type t
   val mkAssign: Exp.code -> Exp.t option -> Exp.t list -> t
   val mkLoad: Exp.t -> Exp.t -> t
-  val mkMutInd: (Exp.t * t) list -> t
+  val mkMutInd: (string * Exp.t * t) list -> t
   val mkLoop: (Exp.t) list -> t -> t
   val mkFallThrough: unit -> t
   val mkDangling: unit -> t
@@ -52,7 +52,7 @@ module Make:
   val get_merge_point: BlockClosure.t -> BlockClosure.t
     -> BlockClosure.t merge_point
 
-  type entry = Statement.Exp.t * BasicBlock.t
+  type entry = string * Statement.Exp.t * BasicBlock.t
   type translator = BasicBlock.t -> ((Statement.Exp.t * Statement.t) * entry list)
 
   (* trace function: current closure -> previous_statement -> entry_aggro
