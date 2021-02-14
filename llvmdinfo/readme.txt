@@ -1,0 +1,1 @@
+(cd _build/default && cc -std=c++14 -I /Users/leyingan/.opam/default/lib/ocaml -I /Users/leyingan/.opam/default/lib/llvm -O2 -fno-strict-aliasing -fwrapv -I/usr/local/Cellar/llvm/10.0.0_3/include -g -o llvmdinfo.o -c llvmdinfo.cc)

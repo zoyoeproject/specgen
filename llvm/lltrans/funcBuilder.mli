@@ -1,6 +1,16 @@
-open Utils
+(* open Utils *)
+open Codeflow
 
-val emit_llvm_inst: (Llvm.llvalue -> Llvm.llvalue) -> Llvm.llvalue -> LlvmStatement.t
-val translate_exits: Llvm.llvalue -> (string * Llvm.llvalue * Llvm.llbasicblock) list
+type llvalue_lattice = Llvm.llvalue -> Llvm.llvalue
+
 val emit_func_head: Llvm.llvalue -> unit
 val is_debug_fun_decl: Llvm.llvalue -> bool
+
+module Translator:
+  functor (LlvmValue: Exp.Exp with
+    type t = Llvm.llvalue and
+    type code = Llvm.Opcode.t
+  ) -> sig
+  module LlvmStatement: Cfg.Statement with module Exp = LlvmValue
+  val translator: llvalue_lattice -> Llvm.llbasicblock -> (Llvm.llvalue * LlvmStatement.t) * ((string * Llvm.llvalue * Llvm.llbasicblock) list)
+end

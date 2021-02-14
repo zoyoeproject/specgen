@@ -1,4 +1,4 @@
-open Element
+open Exp
 
 (* The Basic Blocks we would like to translate *)
 module type Block = sig

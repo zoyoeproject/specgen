@@ -30,13 +30,28 @@ let mkName stropt = match stropt with
   | None -> Anonymous
   | Some str -> Name str
 
+let is_constant llvalue =
+  match Llvm.classify_value llvalue with
+  | ConstantInt -> true
+  | NullValue -> true
+  | ConstantExpr -> true
+  | _ -> false
+
+let is_phi_value llvalue =
+  match Llvm.classify_value llvalue with
+  | Instruction _ -> true
+  | Argument -> true
+  | _ -> false
+
 let value_to_string llvalue =
   match Llvm.classify_value llvalue with
   | NullValue -> "NullValue"
   | Argument -> Llvm.value_name llvalue
   | ConstantInt -> "(" ^ Llvm.string_of_llvalue llvalue ^ ")"
   | ConstantExpr -> "cexpr " ^ (Llvm.string_of_llvalue llvalue)
-  | Instruction _ -> (Llvm.value_name llvalue)
+  | Instruction _ ->
+      let n = (Llvm.value_name llvalue) in
+      if n = "" then "gen_name" else n
   | BasicBlock -> "basic_block"
 (* Unsupported operand
   | BasicBlock
@@ -57,11 +72,8 @@ let value_to_string llvalue =
   | GlobalIFunc
   | GlobalVariable
   | UndefValue
-  | Instruction of Opcode.t
 *)
   | _ -> raise (UnsupportOperand llvalue)
-
-
 
 let op_to_string op_code =
   let open Llvm.Opcode in
@@ -129,24 +141,20 @@ let get_opcode lli =
 let get_operands lli =
   Array.init (Llvm.num_operands lli) (fun n -> Llvm.operand lli n)
 
-let update_phi_lattice lattice init lli =
+let update_phi_lattice upd_lattice lli =
   let opcode = get_opcode lli in
-  let operands = get_operands lli in
   match opcode with
-  | PHI -> Array.fold_left (fun l src -> lattice l src lli) init operands
-  | _ -> init
+  | PHI -> begin
+      let incoming = Llvm.incoming lli in
+      List.iter (fun (src, b) ->
+        upd_lattice b src lli
+      ) incoming
+    end
+  | _ -> ()
 
-module LlvmValue = struct
-  type t = Llvm.llvalue
-  type code = Llvm.Opcode.t
-  let code_to_string = op_to_string
-  let to_string a = value_to_string a
-  let compare a b = String.compare (Llvm.value_name a) (Llvm.value_name b)
-end
+module LlvmStatement (LlvmValue: Exp.Exp) = Codeflow.Element.MakeStatement (LlvmValue)
 
-module LlvmStatement = Codeflow.Element.MakeStatement (LlvmValue)
-
-module BasicBlock (Index: IndexMap)
+module BasicBlock (Index: IndexMap) (LlvmValue: Exp.Exp with type t = Llvm.llvalue)
   : (Cfg.Block with type elt = LlvmValue.t
     and type t = Llvm.llbasicblock) = struct
   type elt = LlvmValue.t

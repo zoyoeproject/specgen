@@ -8,7 +8,7 @@ let _ =
    * Llvm.dump_module llm;
    *)
 
-  Llvm.iter_functions CfgBuilder.emit_llfun llm;
+  Llvm.iter_functions FuncBuilder.emit_llfun llm;
 
   let emitter = Codeflow.Emitter.mkEmitter () in
   Lltrans.TypeBuilder.emit_types emitter;

@@ -1,5 +1,8 @@
 open Utils
 open TypeBuilder
+open Codeflow
+
+type llvalue_lattice = Llvm.llvalue -> Llvm.llvalue
 
 let is_assign op_code =
   let open Llvm.Opcode in
@@ -81,6 +84,10 @@ let translate_exits_br lli =
       assert false
     end
 
+(*
+ * val translate_exits: Llvm.llvalue ->
+ *   (string * Llvm.llvalue * Llvm.llbasicblock) list
+ *)
 let translate_exits lli =
   let opcode = get_opcode lli in
   match opcode with
@@ -107,33 +114,56 @@ let first_operand_has_struct_type operands =
      end
    | _ -> false
 
-let emit_llvm_inst latice lli =
-  try
-    let operands = get_operands lli in
-    let opcode = get_opcode lli in
-    if is_debug_call opcode lli then begin
-       Array.iter (fun operand ->
-         ignore @@ Option.map (fun mn ->
-           Llvmdinfo.register_dinfo mn
-         ) (Llvmdinfo.llvalue_to_metadata operand)
-       ) operands;
-       LlvmStatement.mkComment "llvm debug info detected"
-    end else if Llvm.is_terminator lli then begin
-      match opcode with
-      | Ret -> LlvmStatement.mkAssign opcode None
-          (List.map latice (Array.to_list operands))
-      | _ -> LlvmStatement.mkFallThrough ()
-    end else begin
-      if is_assign opcode then
+module Translator (LlvmValue: Exp.Exp
+    with type t = Llvm.llvalue
+    and type code = Llvm.Opcode.t
+  ) = struct
+
+  module LlvmStatement = LlvmStatement(LlvmValue)
+
+  (*
+   * val emit_llvm_inst:
+   *   (Llvm.llvalue -> Llvm.llvalue) -> Llvm.llvalue -> LlvmStatement.t
+   *)
+  let emit_llvm_inst latice lli =
+    try
+      let operands = get_operands lli in
+      let opcode = get_opcode lli in
+      if is_debug_call opcode lli then begin
+         Array.iter (fun operand ->
+           ignore @@ Option.map (fun mn ->
+             Llvmdinfo.register_dinfo mn
+           ) (Llvmdinfo.llvalue_to_metadata operand)
+         ) operands;
+         LlvmStatement.mkComment "llvm debug info detected"
+      end else if Llvm.is_terminator lli then begin
         match opcode with
-        | GetElementPtr when first_operand_has_struct_type operands ->
-          LlvmStatement.mkAssign opcode (Some (latice lli)) [latice operands.(0); operands.(2)]
-        | _ -> LlvmStatement.mkAssign opcode
-          (Some (latice lli)) (List.map latice (Array.to_list operands))
-      else
-        LlvmStatement.mkAssign opcode None
-          (List.map latice (Array.to_list operands))
-    end
-  with e ->
-    Printf.printf "\nEmit lli error: %s" (Llvm.string_of_llvalue lli);
-    raise e
+        | Ret -> LlvmStatement.mkAssign opcode None
+            (List.map latice (Array.to_list operands))
+        | _ -> LlvmStatement.mkFallThrough ()
+      end else begin
+        if is_assign opcode then
+          match opcode with
+          | GetElementPtr when first_operand_has_struct_type operands ->
+            LlvmStatement.mkAssign opcode (Some (latice lli)) [latice operands.(0); operands.(2)]
+          | _ -> LlvmStatement.mkAssign opcode
+            (Some (latice lli)) (List.map latice (Array.to_list operands))
+        else
+          LlvmStatement.mkAssign opcode None
+            (List.map latice (Array.to_list operands))
+      end
+    with e ->
+      Printf.printf "\nEmit lli error: %s" (Llvm.string_of_llvalue lli);
+      raise e
+
+  let translator var_lattice llblock =
+    let llvalue = Llvm.value_of_block llblock in
+    let statement = Llvm.fold_left_instrs (fun acc v ->
+      let stmt = emit_llvm_inst var_lattice v in
+      LlvmStatement.bind [] acc stmt
+    ) (LlvmStatement.mkFallThrough ()) llblock in
+    let llterminator = Llvm.block_terminator llblock in
+    let exists = translate_exits (Option.get llterminator) in
+    (llvalue, statement), exists
+
+end
