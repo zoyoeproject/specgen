@@ -47,6 +47,9 @@ let raw_struct_name s =
     | _ -> Printf.printf "%s:%s" s (List.hd r) ; assert false
   ) s
 
+let get_field_op lltyp i =
+    let struct_name = Option.get (raw_struct_name (Llvm.struct_name lltyp)) in
+    struct_name ^ ".Field." ^ Llvmdinfo.get_field_name struct_name i
 
 let extract_struct_name s =
   mkName @@ raw_struct_name s
@@ -102,6 +105,7 @@ let emit_type_indicator emitter =
 let emit_record_type emitter lltyp =
   let open Codeflow in
   let type_name = lltype_to_ctype lltyp in
+  let struct_name = Option.get (raw_struct_name (Llvm.struct_name lltyp)) in
   Emitter.emitLine emitter "Module %s." (coq_type_module type_name);
   let e2 = Emitter.indent emitter in
   Emitter.emitLine e2 "Record t := {";
@@ -110,14 +114,23 @@ let emit_record_type emitter lltyp =
   let n = Array.length element_types in
   Array.iteri (fun i t ->
     let type_name = lltype_to_ctype t in
-    let struct_name = Option.get (raw_struct_name (Llvm.struct_name lltyp)) in
     Emitter.emitLine indent_emitter "%s: %s%s"
       (Llvmdinfo.get_field_name struct_name i)
       (coq_type type_name)
       (if i = n-1 then "" else ";")
   ) element_types;
   Emitter.emitLine e2 "}.";
-  Emitter.emitLine emitter "End."
+  Emitter.emitLine e2 "Module Field.";
+  Array.iteri (fun i t ->
+    let type_name = lltype_to_ctype t in
+    Emitter.emitLine indent_emitter "Definition %s ptr: %s := ptr."
+      (Llvmdinfo.get_field_name struct_name i)
+      ("reference (" ^ indicator_of type_name ^ ")")
+  ) element_types;
+  Emitter.emitLine e2 "End Field.";
+  Emitter.emitLine e2 "Instance ti: type_of_ind %s t := {}."
+    (indicator_of type_name);
+  Emitter.emitLine emitter "End %s." (coq_type_module type_name)
 
 let emit_types emitter =
   let open Codeflow in

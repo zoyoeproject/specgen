@@ -41,7 +41,7 @@ Notation "f ;; g" := (f >>= (fun tt => g)) (at level 80, right associativity).
  * using assignment with side effect
  *)
 
-(* Basic ret function which lift a RHS into a monadic function *) Definition x:= 1.
+(* Basic ret function which lift a RHS into a monadic function *)
 Definition
   ret {S R:Type}
   (r:R)

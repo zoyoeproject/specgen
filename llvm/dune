@@ -1,5 +1,5 @@
 (executable
  (name specBuilder)
  ;;(libraries llvm llvm.bitreader codeflow lltrans llvmdinfo)
- (libraries llvm llvm.bitreader codeflow lltrans llvmdinfo)
+ (libraries llvm llvm.bitreader codeflow lltrans llvmdinfo core)
 )

@@ -19,8 +19,7 @@ end
 module type Statement = sig
   module Exp: Exp
   type t
-  val mkAssign: Exp.code -> Exp.t option -> Exp.t list -> t
-  val mkLoad: Exp.t -> Exp.t -> t
+  val mkAssign: bool -> Exp.code -> Exp.t option -> Exp.t list -> t
   val mkMutInd: (string * Exp.t * t) list -> t
   val mkLoop: (Exp.t) list -> t -> t
   val mkFallThrough: unit -> t

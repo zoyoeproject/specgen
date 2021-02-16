@@ -43,15 +43,13 @@ let is_phi_value llvalue =
   | Argument -> true
   | _ -> false
 
-let value_to_string llvalue =
+let value_to_string to_string llvalue =
   match Llvm.classify_value llvalue with
   | NullValue -> "NullValue"
   | Argument -> Llvm.value_name llvalue
   | ConstantInt -> "(" ^ Llvm.string_of_llvalue llvalue ^ ")"
   | ConstantExpr -> "cexpr " ^ (Llvm.string_of_llvalue llvalue)
-  | Instruction _ ->
-      let n = (Llvm.value_name llvalue) in
-      if n = "" then "gen_name" else n
+  | Instruction _ -> to_string llvalue
   | BasicBlock -> "basic_block"
 (* Unsupported operand
   | BasicBlock

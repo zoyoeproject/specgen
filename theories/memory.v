@@ -6,16 +6,10 @@ Require Import Bool.
 Local Open Scope Z_scope.
 
 (* Memory model with refinemnt mapping *)
-Definition reference := Z.
+Definition reference {type_ind: Type} (ind:type_ind) := Z.
 
 (* Handle C forward type declaration by a type class *)
-Class  type_of_ind (T:Type) :=
-  {
-  to: forall (o: T), Type;
-  beq: forall (o:T) (o':T), bool;
-  beq_eq: forall (o:T) (o':T), Is_true (beq o o') -> o = o'
-  }
-.
+Class type_of_ind {type_ind: Type} (ind: type_ind) (otype:Type) := {}.
 
 (*
  * Introduce an type class of abstract spec since the spec is defined case
@@ -26,10 +20,14 @@ Class  type_of_ind (T:Type) :=
  * will be provided after c types are translated.
  *)
 
-Definition abstract_memory {Forward:Type} (type_ind:type_of_ind Forward)
-  := forall (r:reference) (ft:Forward), (@to Forward) type_ind ft.
+Definition
+  abstract_memory
+  (type_ind:Type)
+  := forall (ind: type_ind) (otype: Type)
+            (ti: type_of_ind ind otype)
+            (r:reference ind), otype.
 
-Record state {Forward:Type} (type_ind:type_of_ind Forward) :=
+Record state (type_ind:Type) :=
   STATE
     {
       mem : (abstract_memory type_ind)
@@ -39,11 +37,11 @@ Record state {Forward:Type} (type_ind:type_of_ind Forward) :=
 (* Set the abstract_memory of state s *)
 Definition
   set_memory
-  {Forward: Type} {type_ind:type_of_ind Forward}
+  {type_ind: Type}
   (s: state type_ind) (* the state *)
   mem_func            (* the updated abstract memory *)
   : state type_ind
-  := STATE Forward type_ind (mem_func (mem type_ind s)).
+  := STATE type_ind (mem_func (mem type_ind s)).
 
 (*
  * Deference: Get the content of ref from the state
@@ -53,10 +51,13 @@ Definition
  *)
 Definition
   dereference
-  {Forward: Type} {type_ind: type_of_ind Forward}
-  (ref: reference) (ft:Forward)
+  {type_ind: Type}
+  {ind: type_ind}
+  {otype: Type}
+  {ti: type_of_ind ind otype}
+  (ref: reference ind)
   (s: state type_ind)
-  := (mem type_ind s) ref ft
+  := (mem type_ind s) ind otype ti ref
 .
 
 (*
@@ -64,22 +65,27 @@ Definition
  * ( *ref = o; )
  * for state s.
  *)
-Axiom
+Parameter
   set: forall
-  {Forward: Type} {type_ind: type_of_ind Forward}
-  (ref: reference) {ft: Forward}
-  (o: (@to Forward) type_ind ft)
-  (s: abstract_memory type_ind )
+    {type_ind: Type}
+    {ind: type_ind}
+    {otype: Type}
+    {ti: type_of_ind ind otype}
+    (ref: reference ind)
+    (o: otype)
+    (s: abstract_memory type_ind )
   , abstract_memory type_ind
 .
 
 (* The monadic version of deference *)
 Definition
   get_obj
-  {Forward: Type} {type_ind: type_of_ind Forward}
-  (ref: reference)
-  (ft:Forward)
-  := (fun s => (dereference ref ft s, s)).
+  {type_ind: Type}
+  {ind: type_ind}
+  {otype: Type}
+  {ti: type_of_ind ind otype}
+  (ref: reference ind)
+  := (fun s => (dereference ref s, s)).
 
 
 (*
@@ -90,18 +96,25 @@ Definition
  * Currently we cook the definition of set_obj as follows.
  *)
 Definition
-  set_obj {Forward:Type} {type_ind: type_of_ind Forward} {ft: Forward}
-  (o: (@to Forward) type_ind ft)
+  set_obj
+  {type_ind:Type}
+  {ind: type_ind}
+  {otype: Type}
+  {ti: type_of_ind ind otype}
+  (o: otype)
   ref
   := (fun (s: state type_ind) => (tt, set_memory s (set ref o))).
 
 (* Test the correctiness of notation set_obj and get_obj *)
 Definition
-  setter_getter_test {Forward:Type} {type_ind: type_of_ind Forward}
-  ref
-  (t:Forward)
+  setter_getter_test
+  {type_ind:Type}
+  {ind: type_ind}
+  {otype: Type}
+  {ti: type_of_ind ind otype}
+  (ref: reference ind)
   :=
-    o %= get_obj ref t;
+    o %= get_obj ref;
     set_obj o ref
 .
 

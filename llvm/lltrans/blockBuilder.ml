@@ -4,6 +4,35 @@ open Codeflow
 
 type llvalue_lattice = Llvm.llvalue -> Llvm.llvalue
 
+let is_pure op_code =
+  let open Llvm.Opcode in
+  match op_code with
+  | Add | FAdd | Sub | FSub | Mul | FMul
+  | UDiv | SDiv | FDiv | URem | SRem | FRem
+  | Shl -> true | LShr | AShr | And | Or
+  | Xor -> true
+  | Alloca -> false
+  | Load -> false
+  | GetElementPtr -> true (* This is the only way to get filed info *)
+  | Ret -> assert false
+  | ICmp -> true
+  | FCmp -> true
+  | PHI -> true
+  | Select -> true
+  | Trunc -> true (* Cast Operators *)
+  | ZExt -> true
+  | SExt -> true
+  | FPToUI -> true
+  | FPToSI -> true
+  | UIToFP -> true
+  | SIToFP -> true
+  | FPTrunc -> true
+  | FPExt -> true
+  | PtrToInt -> true
+  | IntToPtr -> true
+  | BitCast -> true
+  | _ -> false
+
 let is_assign op_code =
   let open Llvm.Opcode in
   match op_code with
@@ -65,7 +94,7 @@ let emit_func_head lv =
       Llvm.value_name n, coqtyp
   ) pargs ptypes in
   let rettyp = Llvm.return_type func_ty in
-  Printf.printf "%s : %s :="
+  Printf.printf "%s: %s :="
     (Array.fold_left (fun acc (n,t) ->
       acc ^ " (" ^ n ^ ":" ^ t ^")"
     ) "body" arg_type_pairs)
@@ -116,7 +145,7 @@ let first_operand_has_struct_type operands =
 
 module Translator (LlvmValue: Exp.Exp
     with type t = Llvm.llvalue
-    and type code = Llvm.Opcode.t
+    and type code = string
   ) = struct
 
   module LlvmStatement = LlvmStatement(LlvmValue)
@@ -138,30 +167,47 @@ module Translator (LlvmValue: Exp.Exp
          LlvmStatement.mkComment "llvm debug info detected"
       end else if Llvm.is_terminator lli then begin
         match opcode with
-        | Ret -> LlvmStatement.mkAssign opcode None
+        | Ret -> LlvmStatement.mkAssign true (op_to_string opcode) None
             (List.map latice (Array.to_list operands))
         | _ -> LlvmStatement.mkFallThrough ()
       end else begin
         if is_assign opcode then
           match opcode with
-          | GetElementPtr when first_operand_has_struct_type operands ->
-            LlvmStatement.mkAssign opcode (Some (latice lli)) [latice operands.(0); operands.(2)]
-          | _ -> LlvmStatement.mkAssign opcode
+          | GetElementPtr when first_operand_has_struct_type operands -> begin
+            let ltype = Llvm.type_of operands.(0) in
+            let idx = Option.get @@ Llvm.int64_of_const operands.(2) in
+            let field_op = TypeBuilder.get_field_op (Llvm.element_type ltype)
+              (Int64.to_int idx)
+            in
+            LlvmStatement.mkAssign (true) (field_op)
+              (Some (latice lli)) [latice operands.(0)]
+            end
+          | _ -> LlvmStatement.mkAssign (is_pure opcode) (op_to_string opcode)
             (Some (latice lli)) (List.map latice (Array.to_list operands))
         else
-          LlvmStatement.mkAssign opcode None
+          LlvmStatement.mkAssign (is_pure opcode) (op_to_string opcode) None
             (List.map latice (Array.to_list operands))
       end
     with e ->
       Printf.printf "\nEmit lli error: %s" (Llvm.string_of_llvalue lli);
       raise e
 
-  let translator var_lattice llblock =
+  let translator var_lattice phi_table llblock =
     let llvalue = Llvm.value_of_block llblock in
+    let claims = match Hashtbl.find_opt phi_table llblock with
+      | Some ls -> ls
+      | None -> []
+    in
+    let statement = List.fold_left (fun acc (v, exp) ->
+      let s = LlvmStatement.mkAssign false "ret" (Some v) [exp] in
+      LlvmStatement.bind [v] s acc
+    ) (LlvmStatement.mkFallThrough ()) (List.rev claims)
+    in
     let statement = Llvm.fold_left_instrs (fun acc v ->
       let stmt = emit_llvm_inst var_lattice v in
       LlvmStatement.bind [] acc stmt
-    ) (LlvmStatement.mkFallThrough ()) llblock in
+    ) statement llblock
+    in
     let llterminator = Llvm.block_terminator llblock in
     let exists = translate_exits (Option.get llterminator) in
     (llvalue, statement), exists
