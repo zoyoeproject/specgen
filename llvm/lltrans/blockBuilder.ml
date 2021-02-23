@@ -81,10 +81,10 @@ let is_debug_fun_decl lv =
   let func_name = Llvm.value_name lv in
   func_name = "llvm.dbg.value"
 
-let emit_func_head lv =
+let emit_func_head emitter lv =
   (* name should be used for file name *)
   (* let func_name = Llvm.value_name lv; *)
-  Printf.printf "Definition\n";
+  Codeflow.Emitter.emitLine emitter "Definition";
   let func_ty = Llvm.element_type @@ Llvm.type_of lv in
   let ptypes = Llvm.param_types func_ty in
   let pargs = Llvm.params lv in
@@ -94,7 +94,7 @@ let emit_func_head lv =
       Llvm.value_name n, coqtyp
   ) pargs ptypes in
   let rettyp = Llvm.return_type func_ty in
-  Printf.printf "%s: %s :="
+  Codeflow.Emitter.emitLine emitter "%s: %s :="
     (Array.fold_left (fun acc (n,t) ->
       acc ^ " (" ^ n ^ ":" ^ t ^")"
     ) "body" arg_type_pairs)

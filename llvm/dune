@@ -2,4 +2,5 @@
  (name specBuilder)
  ;;(libraries llvm llvm.bitreader codeflow lltrans llvmdinfo)
  (libraries llvm llvm.bitreader codeflow lltrans llvmdinfo core)
+ (preprocess (pps ppx_let))
 )

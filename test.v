@@ -13,6 +13,7 @@ Open Scope Z.
 Inductive CType :=
   | T_A
   | Int
+  | Ref : CType -> CType
 .
 
 Instance z_ti: type_of_ind Int Z := {}.

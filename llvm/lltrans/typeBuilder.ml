@@ -100,6 +100,7 @@ let emit_type_indicator emitter =
     let type_name = lltype_to_ctype t in
     Emitter.emitLine e2 "| %s" (indicator_of type_name);
   ) lltype_table;
+  Emitter.emitLine e2 "| Ref: CType -> CType";
   Emitter.emitLine emitter "."
 
 let emit_record_type emitter lltyp =
@@ -134,6 +135,8 @@ let emit_record_type emitter lltyp =
 
 let emit_types emitter =
   let open Codeflow in
+  Emitter.emitLine emitter "#include \"type.template\"";
+  Emitter.emitEmptyLine emitter;
   emit_type_indicator emitter;
   let type_list = List.of_seq @@ Hashtbl.to_seq_keys lltype_table in
   let type_list = List.sort (fun x y -> String.compare x y) type_list in

@@ -3,7 +3,7 @@ open Codeflow
 
 type llvalue_lattice = Llvm.llvalue -> Llvm.llvalue
 
-val emit_func_head: Llvm.llvalue -> unit
+val emit_func_head: Emitter.t -> Llvm.llvalue -> unit
 val is_debug_fun_decl: Llvm.llvalue -> bool
 
 module Translator:

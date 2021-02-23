@@ -1,12 +1,13 @@
 type t = {
   ident: string;
+  output: out_channel;
 }
 
-let indent t = {ident = "  " ^ t.ident}
-let mkEmitter _ = {ident = ""}
+let indent t = {t with ident = "  " ^ t.ident}
+let mkEmitter channel = {ident = ""; output = channel}
 let emitLine t x =
-  Printf.printf "\n%s" t.ident;
-  Printf.printf x
+  Printf.fprintf t.output "\n%s" t.ident;
+  Printf.fprintf t.output x
 
-let emitEmptyLine _ =
-  Printf.printf "\n"
+let emitEmptyLine t =
+  Printf.fprintf t.output "\n"

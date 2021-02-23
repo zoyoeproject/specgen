@@ -80,13 +80,19 @@ let emit_llfun_body emitter llfun =
   in
   CFG.Statement.emit emitter (snd st)
 
-let emit_llfun llfun =
+(*
+@@ Codeflow.Emitter.mkEmitter ()
+ *)
+
+let emit_llfun emitter llfun =
   if (Lltrans.BlockBuilder.is_debug_fun_decl llfun) then
     ()
   else begin
-    let emitter = Codeflow.Emitter.indent @@ Codeflow.Emitter.mkEmitter () in
-    Lltrans.BlockBuilder.emit_func_head llfun;
+    Codeflow.Emitter.emitLine emitter "#include \"func_head.template\"";
+    Codeflow.Emitter.emitEmptyLine emitter;
+    Lltrans.BlockBuilder.emit_func_head emitter llfun;
+    let emitter = Codeflow.Emitter.indent emitter in
     emit_llfun_body emitter llfun;
-    Printf.printf "\n";
+    Codeflow.Emitter.emitEmptyLine emitter;
     ()
   end
