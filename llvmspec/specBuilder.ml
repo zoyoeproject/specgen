@@ -1,12 +1,12 @@
 open Core
 
-let type_fname = "type.v"
+let type_fname = "type.spec"
 
 let type_file project_folder =
-  Out_channel.create @@ project_folder ^ "/" ^ type_fname
+  Out_channel.create @@ project_folder ^ "/output/" ^ type_fname
 
 let func_file project_folder func_name =
-  Out_channel.create @@ project_folder ^ "/" ^ func_name
+  Out_channel.create @@ project_folder ^ "/output/" ^ func_name
 
 
 let do_compile src_file project_folder =
@@ -22,7 +22,7 @@ let do_compile src_file project_folder =
   Llvm.iter_functions (fun llfun ->
     let func_name = Llvm.value_name llfun in
     let emitter = Codeflow.Emitter.mkEmitter
-        (func_file project_folder (func_name ^ ".v"))
+        (func_file project_folder (func_name ^ ".fun"))
     in
     FuncBuilder.emit_llfun emitter llfun
   ) llm ;
