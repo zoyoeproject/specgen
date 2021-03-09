@@ -147,5 +147,9 @@ let emit_types emitter =
     | Struct _ -> emit_record_type emitter lltyp
     | _ -> ()
   ) type_list;
+  Emitter.emitEmptyLine emitter;
+
+  Emitter.emitLine emitter "(* Bind Int type to Z *)";
+  Emitter.emitLine emitter "Instance z_ti: type_of_ind Int Z := {}.";
   Emitter.emitEmptyLine emitter
 

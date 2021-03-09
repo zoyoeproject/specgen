@@ -10,6 +10,7 @@ module MakeStatement:
   val mkFallThrough: unit -> t
   val mkDangling: unit -> t
   val mkRaise: int -> t
+  val mkReturn: Exp.t array -> t
   val mkComment: string -> t
   val bind: Exp.t list -> t -> t -> t
   val emit: Emitter.t -> t -> unit

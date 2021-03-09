@@ -93,6 +93,7 @@ let emit_llfun emitter llfun =
     Lltrans.BlockBuilder.emit_func_head emitter llfun;
     let emitter = Codeflow.Emitter.indent emitter in
     emit_llfun_body emitter llfun;
+    Codeflow.Emitter.emitLine emitter ".";
     Codeflow.Emitter.emitEmptyLine emitter;
     ()
   end

@@ -167,9 +167,10 @@ module Translator (LlvmValue: Exp.Exp
          LlvmStatement.mkComment "llvm debug info detected"
       end else if Llvm.is_terminator lli then begin
         match opcode with
-        | Ret -> LlvmStatement.mkAssign true (op_to_string opcode) None
-            (List.map latice (Array.to_list operands))
+        | Ret -> LlvmStatement.mkReturn (Array.map latice operands)
         | _ -> LlvmStatement.mkFallThrough ()
+      end else if is_phi_value lli then begin
+        LlvmStatement.mkFallThrough ()
       end else begin
         if is_assign opcode then
           match opcode with

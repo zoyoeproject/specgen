@@ -11,6 +11,7 @@ module MakeStatement (E:Exp) = struct
     | MutInd of (string * Exp.t * t) list
     | Loop of (Exp.t list * t)
     | Bind of (Exp.t list * t * t)
+    | Return of Exp.t array
     | FallThrough (* empty statement *)
     | Dangling (* non'a tinate statement *)
     | Raise of int
@@ -22,6 +23,7 @@ module MakeStatement (E:Exp) = struct
   let mkDangling _ = Dangling
   let mkRaise i = Raise i
   let mkComment c = Comment c
+  let mkReturn c = Return c
 
   let string_of_ctx ctx =
     match ctx with
@@ -98,6 +100,13 @@ module MakeStatement (E:Exp) = struct
         ctx
       end
     | Dangling -> Emitter.emitLine emitter "dangling"; ctx
+    | Return op -> begin
+        let r = if Array.length(op) = 0 then "()"
+          else (Exp.to_string op.(0))
+        in
+        Emitter.emitLine emitter "%s" ("ret " ^ r);
+        ctx
+      end
     | Assign (pure, op, lhs, ops) -> begin
         let rhs = List.fold_left (fun acc operand ->
               acc ^ " " ^  (Exp.to_string operand)

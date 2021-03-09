@@ -5,6 +5,8 @@
  * The restriction is that we relies on llvm compiler to give the correct type info
  * of word arithments.
  *)
+Require Import ZArith.
+Open Scope Z.
 
 (*
 Definition word_plus (a:Z) (b:Z) (sz:nat)
@@ -14,3 +16,7 @@ Definition word_div (a:Z) (b:Z) (sz:nat)
 Definition word_shiftl (a:Z) (b:Z) (sz:nat)
 Definition word_shiftr (a:Z) (b:Z) (sz:nat)
 *)
+
+Definition i32 (x:Z) := x.
+
+Definition icomp (a:Z) (b:Z) := Z.eqb a b.
