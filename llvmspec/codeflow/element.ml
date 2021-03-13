@@ -83,7 +83,7 @@ module MakeStatement (E:Exp) = struct
           emit_ctx emitter' ctx s
         ) ls;
         Emitter.emitLine emitter "end;";
-        Emitter.emitLine emitter "let %s = __context in" (string_of_ctx ctx);
+        Emitter.emitLine emitter "let %s := __context in" (string_of_ctx ctx);
         ctx
       end
     | Loop (lctx, s) -> begin

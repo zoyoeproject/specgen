@@ -18,8 +18,11 @@ if [ $1 = "create" ]
         else
           echo "Creating project directory at $2"
           mkdir $2
+          cp templates/Makefile $2
           echo "Creating output directory: $2/output"
           mkdir $2/output
+          echo "Creating output directory: $2/output"
+          mkdir $2/spec
         fi
     else
       echo "no project name specified"

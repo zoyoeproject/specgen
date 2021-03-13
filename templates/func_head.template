@@ -1,5 +1,6 @@
 Require Import Core.lib.
 Require Import ZArith.
+Require Import type.
 Open Scope Z.
 
 
