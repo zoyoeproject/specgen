@@ -37,6 +37,12 @@ let is_constant llvalue =
   | ConstantExpr -> true
   | _ -> false
 
+let is_phi_op op_code =
+  let open Llvm.Opcode in
+  match op_code with
+  | PHI -> true
+  | _ -> false
+
 let is_phi_value llvalue =
   match Llvm.classify_value llvalue with
   | Instruction _ -> true

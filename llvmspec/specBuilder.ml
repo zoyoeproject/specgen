@@ -21,10 +21,14 @@ let do_compile src_file project_folder =
 
   Llvm.iter_functions (fun llfun ->
     let func_name = Llvm.value_name llfun in
-    let emitter = Codeflow.Emitter.mkEmitter
+    if (Lltrans.BlockBuilder.is_debug_fun_decl llfun) then
+      ()
+    else begin
+      let emitter = Codeflow.Emitter.mkEmitter
         (func_file project_folder (func_name ^ ".fun"))
-    in
-    FuncBuilder.emit_llfun emitter llfun
+      in
+      FuncBuilder.emit_llfun emitter llfun
+    end
   ) llm ;
 
   let emitter = Codeflow.Emitter.mkEmitter (type_file project_folder) in

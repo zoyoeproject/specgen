@@ -85,15 +85,11 @@ let emit_llfun_body emitter llfun =
  *)
 
 let emit_llfun emitter llfun =
-  if (Lltrans.BlockBuilder.is_debug_fun_decl llfun) then
-    ()
-  else begin
-    Codeflow.Emitter.emitLine emitter "#include \"func_head.template\"";
-    Codeflow.Emitter.emitEmptyLine emitter;
-    Lltrans.BlockBuilder.emit_func_head emitter llfun;
-    let emitter = Codeflow.Emitter.indent emitter in
-    emit_llfun_body emitter llfun;
-    Codeflow.Emitter.emitLine emitter ".";
-    Codeflow.Emitter.emitEmptyLine emitter;
-    ()
-  end
+  Codeflow.Emitter.emitLine emitter "#include \"func_head.template\"";
+  Codeflow.Emitter.emitEmptyLine emitter;
+  Lltrans.BlockBuilder.emit_func_head emitter llfun;
+  let emitter = Codeflow.Emitter.indent emitter in
+  emit_llfun_body emitter llfun;
+  Codeflow.Emitter.emitLine emitter ".";
+  Codeflow.Emitter.emitEmptyLine emitter;
+  ()

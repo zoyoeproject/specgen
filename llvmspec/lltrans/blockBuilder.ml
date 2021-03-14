@@ -79,7 +79,10 @@ let is_assign op_code =
 
 let is_debug_fun_decl lv =
   let func_name = Llvm.value_name lv in
-  func_name = "llvm.dbg.value"
+  let ns = String.split_on_char '.' func_name in
+  match ns with
+  | "llvm" :: "dbg" :: _ -> true
+  | _ -> false
 
 let emit_func_head emitter lv =
   (* name should be used for file name *)
@@ -94,7 +97,7 @@ let emit_func_head emitter lv =
       Llvm.value_name n, coqtyp
   ) pargs ptypes in
   let rettyp = Llvm.return_type func_ty in
-  Codeflow.Emitter.emitLine emitter "%s: %s :="
+  Codeflow.Emitter.emitLine emitter "%s: monad (state CType) %s :="
     (Array.fold_left (fun acc (n,t) ->
       acc ^ " (" ^ n ^ ":" ^ t ^")"
     ) "body" arg_type_pairs)
@@ -169,7 +172,8 @@ module Translator (LlvmValue: Exp.Exp
         match opcode with
         | Ret -> LlvmStatement.mkReturn (Array.map latice operands)
         | _ -> LlvmStatement.mkFallThrough ()
-      end else if is_phi_value lli then begin
+      end else if is_phi_op opcode then begin
+        ignore (Array.map latice operands); (* FIXME: Still has to track all types *)
         LlvmStatement.mkFallThrough ()
       end else begin
         if is_assign opcode then
