@@ -19,6 +19,8 @@ let do_compile src_file project_folder =
    * Llvm.dump_module llm;
    *)
 
+  Llvm.dump_module llm;
+
   Llvm.iter_functions (fun llfun ->
     let func_name = Llvm.value_name llfun in
     if (Lltrans.BlockBuilder.is_debug_fun_decl llfun) then

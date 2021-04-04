@@ -1,6 +1,6 @@
 open Exp
 
-let debug_toggle = false
+let debug_toggle = true
 let debug : ('a, out_channel, unit) format -> 'a
      = if debug_toggle then Printf.printf
        else (fun x -> Printf.ifprintf stdout x)
@@ -163,6 +163,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   module ExitSet = Set.Make (Exit)
 
   type entry = string * Statement.Exp.t * BasicBlock.t
+
   type translator = BasicBlock.t -> ((Statement.Exp.t * Statement.t) * entry list)
 
   type error =
@@ -170,13 +171,16 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
 
   exception CFGError of (error * BlockClosure.t option)
 
+  let split_loop_exits (b:BasicBlock.t) (es: entry list) =
+    List.partition (fun (_, _, b') -> BasicBlock.compare b b' = 0) es
+
   let debug_aggro aggro =
     BlockClosure.iter (fun aggo ->
       let aggs = BlockClosure.next aggo in
       let nexts = List.fold_left (fun acc a ->
         BlockClosure.id a ^ ";" ^ acc
       ) "" aggs in
-      debug "%s -> %s" (BlockClosure.id aggo) nexts
+      debug "%s => %s\n" (BlockClosure.id aggo) nexts
     ) aggro
 
   let emitter _ = raise @@ CFGError (MultiEntry BlockSet.empty, None)
@@ -236,12 +240,14 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
 
     let stop_callback () = () in
     let contract_callback () = path := List.tl !path in
-    (* let log_callback _ _ = () in *)
-    let log_callback state hint =
-      debug "%s | " hint;
-      debug "%s | %s\n" state (List.fold_left (
-        fun acc c-> BasicBlock.id c ^ " -> " ^ acc
-      ) "" !path)
+    let debug_log_callback = false in
+    let log_callback state hint = if debug_log_callback
+      then begin
+        debug "%s | " hint;
+        debug "%s | %s\n" state (List.fold_left (
+          fun acc c-> BasicBlock.id c ^ " -> " ^ acc
+        ) "" !path)
+      end else ()
     in
 
     BGraph.dfs [Some entry; None] extend_callback
@@ -279,7 +285,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
     ) false ls
 
   let merge_to_string = function
-  | Merge bgg -> BlockClosure.id bgg
+  | Merge bgg -> "Merge | " ^ (BlockClosure.id bgg)
   | Dangle -> "Dangle"
   | Diverge ls -> List.fold_left (fun acc c -> acc ^ " " ^ BlockClosure.id c) "Diverge" ls
 
@@ -318,13 +324,13 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
      * new path = c, x_1, x_2, ..., x_k
      *)
     let extend_callback c =
-      let pr_path () =
-        debug "path := < ";
-        List.iter (fun (aggro:BlockClosure.t) ->
-          debug " %s " (BlockClosure.id aggro)
-        ) (List.rev !path);
-        debug " -- end -- %s >\n" (BlockClosure.id aggro);
-      in
+      let pr_path () = if false then begin
+          debug "path := < ";
+          List.iter (fun (aggro:BlockClosure.t) ->
+            debug " %s " (BlockClosure.id aggro)
+          ) (List.rev !path);
+          debug " -- end -- %s >\n" (BlockClosure.id aggro);
+        end else () in
 
       if BlockClosure.equal c entry_aggro && List.length !path != 0
       then begin
@@ -353,12 +359,13 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
     in
 
     (* let log_callback _ _ = () in *)
-    let log_callback state hint =
-      debug "%s | " hint;
-      debug "%s | %s\n" state (List.fold_left (
-        fun acc c-> BlockClosure.id c ^ " -> " ^ acc
-      ) "" !path)
-    in
+    let log_callback state hint = if false
+      then begin
+        debug "%s | " hint;
+        debug "%s | %s\n" state (List.fold_left (
+          fun acc c-> BlockClosure.id c ^ " -> " ^ acc
+        ) "" !path)
+      end else () in
 
 
     BlockClosureGraph.dfs [Some aggro] extend_callback
@@ -397,10 +404,10 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
     let exit_aggros = get_merge_point aggro entry_aggro in
     let exits, statement =
         trace_within (e, target) aggro exit_aggros translator in
-    let loop _ _ = false in
+    let is_loop _ _ = false in
     let r = match exit_aggros with
     | Diverge _ (* blocks here are only for debug purpose *) ->
-      if loop entry_aggro exits then
+      if is_loop entry_aggro exits then
         exits, Statement.mkLoop [] statement
       else
         raise DivergeExitOfAggroSet
@@ -443,7 +450,9 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   and trace_within (exp, entry) aggro merge translator
     : (Statement.Exp.t * BasicBlock.t) list * Statement.t
      =
-    debug "trace %s within %s ...\n" (BasicBlock.id entry) (BlockClosure.id aggro);
+    debug "trace %s within %s [merge %s] ...\n" (BasicBlock.id entry)
+      (BlockClosure.id aggro)
+      (merge_to_string merge);
     if reach_merge_point merge aggro then begin
       debug "reach merge point\n";
       [exp, entry], Statement.mkFallThrough ()
@@ -453,8 +462,8 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
       | [] -> assert false
       | [hd] -> (* hd must equal to entry *)
         let previous, exits = translator hd in
-        trace_blocks previous
-          exits aggro merge translator
+        let _ , exits = split_loop_exits hd exits in
+          trace_blocks previous exits aggro merge translator
       | _ -> begin
           let aggro = aggregate entry aggro.blocks true in
           trace aggro (Statement.mkFallThrough ())

@@ -20,3 +20,6 @@ Definition word_shiftr (a:Z) (b:Z) (sz:nat)
 Definition i32 (x:Z) := x.
 
 Definition icomp (a:Z) (b:Z) := Z.eqb a b.
+
+Axiom wadd: Z -> Z-> Z.
+Axiom wmul: Z -> Z-> Z.

@@ -27,7 +27,8 @@ module MakeStatement (E:Exp) = struct
 
   let string_of_ctx ctx =
     match ctx with
-    | [] -> "()"
+    | [] -> "tt"
+    | [hd] -> Exp.to_string hd
     | hd :: tl ->
       let inner = List.fold_left (fun acc c ->
         acc ^ ", " ^ (Exp.to_string c)
@@ -101,7 +102,7 @@ module MakeStatement (E:Exp) = struct
       end
     | Dangling -> Emitter.emitLine emitter "dangling"; ctx
     | Return op -> begin
-        let r = if Array.length(op) = 0 then "()"
+        let r = if Array.length(op) = 0 then "tt"
           else (Exp.to_string op.(0))
         in
         Emitter.emitLine emitter "%s" ("ret " ^ r);

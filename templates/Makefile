@@ -10,7 +10,7 @@ spec: $(SPEC_FILES) $(SPEC_DIR)/type.v $(SPEC_DIR)/Makefile
 	echo "all spec files generated."
 
 $(SPEC_DIR)/Makefile: $(SPEC_FILES)
-	cd $(SPEC_DIR) && coq_makefile -R $(PLUGIN_DIR) Core -I $(PLUGIN_DIR) $(RAW_SPEC_FILES) -o Makefile
+	cd $(SPEC_DIR) && coq_makefile -R $(PLUGIN_DIR) Core -I $(PLUGIN_DIR) $(RAW_SPEC_FILES) type.v -o Makefile
 
 $(SPEC_DIR)/type.v: $(PRE_SPEC_DIR)/type.spec
 	gpp -I $(TEMPLATES) $< -o $@
