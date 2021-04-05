@@ -1,9 +1,31 @@
 open Exp
 
 let debug_toggle = true
-let debug : ('a, out_channel, unit) format -> 'a
-     = if debug_toggle then Printf.printf
-       else (fun x -> Printf.ifprintf stdout x)
+
+module IndentLogger = struct
+  let indent = ref 0
+
+  let rec mkindent n indent = if n > 0 then
+      mkindent (n-1) (indent ^ "  ")
+    else indent
+
+  let debug (x:('a, out_channel, unit) format): 'a =
+     let str = mkindent !indent "" in
+     if debug_toggle then
+         Printf.printf ("%s" ^^ x) str
+       else (Printf.ifprintf stdout x)
+
+  let scope f =
+    indent := !indent + 1;
+    debug "{\n";
+    let c = f () in
+    debug "}\n";
+    indent := !indent - 1;
+    c
+end
+
+let debug : ('a, out_channel, unit) format -> 'a = IndentLogger.debug
+let scope = IndentLogger.scope
 
 module type Statement = sig
   module Exp: Exp
@@ -403,7 +425,8 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
     let aggro = !(BlockClosure.find_aggro target closure) in
     let exit_aggros = get_merge_point aggro entry_aggro in
     let exits, statement =
-        trace_within (e, target) aggro exit_aggros translator in
+        scope (fun () -> trace_within (e, target) aggro exit_aggros translator)
+    in
     let is_loop _ _ = false in
     let r = match exit_aggros with
     | Diverge _ (* blocks here are only for debug purpose *) ->
@@ -424,8 +447,10 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
           | [label, branch] -> label, branch
           |  _ -> assert false
         in
-        let (branchs, next) = trace closure statement entry_aggro
-            merge_aggro (label, branch) translator in
+        let (branchs, next) = scope (fun () -> trace closure statement entry_aggro
+            merge_aggro (label, branch) translator
+          )
+        in
         let statement = Statement.bind [] previous @@ next
         in (branchs, statement)
       end
@@ -434,8 +459,12 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
 
   and trace_blocks (_, previous) blocks aggro merge translator =
     let exists, stmts = List.fold_left (fun (es, stmts) (label, exp, b) ->
+      debug "trace_blocks %s within %s ...\n" (BasicBlock.id b)
+      (BlockClosure.id aggro);
       let next = BlockClosure.find_aggro b aggro in
-      let exists, stmt = trace_within (exp, b) !next merge translator in
+      let exists, stmt = scope (
+        fun () -> trace_within (exp, b) !next merge translator
+      ) in
       exists @ es, stmts @ [label, exp, stmt]
     ) ([],[]) blocks in
     let statement = match stmts with
@@ -450,9 +479,8 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   and trace_within (exp, entry) aggro merge translator
     : (Statement.Exp.t * BasicBlock.t) list * Statement.t
      =
-    debug "trace %s within %s [merge %s] ...\n" (BasicBlock.id entry)
-      (BlockClosure.id aggro)
-      (merge_to_string merge);
+    debug "trace %s within %s ...\n" (BasicBlock.id entry)
+      (BlockClosure.id aggro);
     if reach_merge_point merge aggro then begin
       debug "reach merge point\n";
       [exp, entry], Statement.mkFallThrough ()
@@ -463,12 +491,13 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
       | [hd] -> (* hd must equal to entry *)
         let previous, exits = translator hd in
         let _ , exits = split_loop_exits hd exits in
-          trace_blocks previous exits aggro merge translator
+          scope (fun _ -> trace_blocks previous exits aggro merge translator)
       | _ -> begin
           let aggro = aggregate entry aggro.blocks true in
-          trace aggro (Statement.mkFallThrough ())
+          scope (fun () -> trace aggro (Statement.mkFallThrough ())
             !(BlockClosure.find_aggro entry aggro)
             None (exp, entry) translator
+          )
         end
     end
   (* ---- end of rec trace ---- *)
