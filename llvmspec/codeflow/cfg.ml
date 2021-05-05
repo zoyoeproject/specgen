@@ -60,7 +60,7 @@ end
 module Graph (B:Block) = struct
   let dfs entries extend_callback contract_callback stop_callback log_callback =
     let rec step_once ready_stack = begin
-      assert (List.length ready_stack < 10);
+      assert (List.length ready_stack < 100);
       (* Invariance: if x∈ready_stack then x∈closure *)
       let hint = (List.fold_left (fun acc c-> acc ^ ", " ^
             match c with | Some c -> B.id c | None -> "<>")
@@ -303,6 +303,7 @@ module Make (S:Statement) (BasicBlock: Block with type elt = S.Exp.t)
   let reach_merge_point mp b = match mp with
   | Merge b' -> BlockClosure.equal b' b
   | Dangle -> false
+  | Diverge [] -> true
   | Diverge ls -> List.fold_left (fun acc b' ->
       acc || BlockClosure.equal b' b
     ) false ls

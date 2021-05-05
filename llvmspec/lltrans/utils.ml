@@ -4,6 +4,33 @@ exception UnsupportOpcode of Llvm.Opcode.t
 exception UnsupportOperand of Llvm.llvalue
 exception UnsupportType of Llvm.lltype
 
+let value_class llvalue =
+  match Llvm.classify_value llvalue with
+  | NullValue -> "NullValue"
+  | Argument -> "Argument"
+  | BasicBlock -> "BasicBlock"
+  | InlineAsm -> "InlineAsm"
+  | MDNode -> "MDNode"
+  | MDString -> "MDString"
+  | BlockAddress -> "BlockAddress"
+  | ConstantAggregateZero -> "ConstantAggregate"
+  | ConstantArray -> "Array"
+  | ConstantDataArray -> "DataArray"
+  | ConstantDataVector -> "DataVector"
+  | ConstantExpr -> "Expr"
+  | ConstantFP -> "FP"
+  | ConstantInt -> "Int"
+  | ConstantPointerNull -> "Null"
+  | ConstantStruct -> "Struct"
+  | ConstantVector -> "Vector"
+  | Function -> "Function"
+  | GlobalAlias -> "GlobalAlias"
+  | GlobalIFunc -> "GlobalIFunc"
+  | GlobalVariable -> "GlobalVariable"
+  | UndefValue -> "UndefValue"
+  | Instruction _ -> "Instruction"
+
+
 let () =
   Printexc.register_printer
     (function
@@ -14,7 +41,7 @@ let () =
 let () =
   Printexc.register_printer
     (function
-      | UnsupportOperand llvalue -> Some (Printf.sprintf "UnsupportOperand[%s]" (Llvm.string_of_llvalue llvalue))
+      | UnsupportOperand llvalue -> Some (Printf.sprintf "UnsupportOperand[%s] %s" (value_class llvalue) (Llvm.string_of_llvalue llvalue))
       | _ -> None
     )
 
@@ -49,6 +76,7 @@ let is_phi_value llvalue =
   | Argument -> true
   | _ -> false
 
+
 let value_to_string to_string llvalue =
   match Llvm.classify_value llvalue with
   | NullValue -> "NullValue"
@@ -57,6 +85,7 @@ let value_to_string to_string llvalue =
   | ConstantExpr -> "cexpr " ^ (Llvm.string_of_llvalue llvalue)
   | Instruction _ -> to_string llvalue
   | BasicBlock -> "basic_block"
+  | ConstantPointerNull -> "null"
 (* Unsupported operand
   | BasicBlock
   | InlineAsm
@@ -68,7 +97,6 @@ let value_to_string to_string llvalue =
   | ConstantDataArray
   | ConstantDataVector
   | ConstantFP
-  | ConstantPointerNull
   | ConstantStruct
   | ConstantVector
   | Function
